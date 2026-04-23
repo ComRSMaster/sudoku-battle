@@ -84,6 +84,12 @@ class Grid:
         for _ in range(0, count):
             random.choice(shuffle_func)()
 
+    def guess_cells(self, count):
+        """Вычеркивание `count` случайных ячеек"""
+        cells = random.sample(range(self.n**4), count)
+        for cell in cells:
+            self.table[cell // (self.n * self.n)][cell % (self.n * self.n)] = 0
+
     def validate(self) -> bool:
         """Проверка таблицы с судоку на валидность"""
 
