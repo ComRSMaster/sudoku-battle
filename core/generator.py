@@ -1,4 +1,5 @@
 import random
+from typing import Generator
 
 
 class Grid:
@@ -84,11 +85,38 @@ class Grid:
         for _ in range(0, count):
             random.choice(shuffle_func)()
 
-    def guess_cells(self, count):
+    def guess_cells(self, count: int):
         """Вычеркивание `count` случайных ячеек"""
         cells = random.sample(range(self.n**4), count)
         for cell in cells:
             self.table[cell // (self.n * self.n)][cell % (self.n * self.n)] = 0
+
+    def available_values(self, row: int, col: int) -> Generator[int, None, None]:
+        """Возвращает список доступных значений для ячейки (`row`, `col`)"""
+        unused = [True] * (self.n * self.n + 1)
+
+        for i in range(0, self.n * self.n):
+            unused[self.table[row][i]] = False
+            unused[self.table[i][col]] = False
+
+        arow = row // self.n * self.n
+        acol = col // self.n * self.n
+        for i in range(0, self.n):
+            for j in range(0, self.n):
+                unused[self.table[arow + i][acol + j]] = False
+
+        return (i for i in range(1, self.n * self.n + 1) if unused[i])
+
+    def solve_cell(self, row: int, col: int, value: int) -> bool:
+        """Ход пользователя и его проверка в ячейке (`row`, `col`)"""
+        if not (1 <= value <= self.n * self.n):
+            return False
+
+        if value not in self.available_values(row, col):
+            return False
+
+        self.table[row][col] = value
+        return True
 
     def validate(self) -> bool:
         """Проверка таблицы с судоку на валидность"""
