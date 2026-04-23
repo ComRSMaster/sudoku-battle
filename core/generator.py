@@ -1,0 +1,121 @@
+import random
+
+
+class Grid:
+    """Класс таблицы судоку.
+    `self.n` - размер района (по умолчанию 3)
+    0 - пустая клетка.
+    Клетки с 1 до `self.n * self.n` - заполненные."""
+
+    def __init__(self, n: int = 3):
+        """Генерация базовой таблицы судоку"""
+        self.n: int = n
+        self.table: list[list[int]] = [
+            [((i * n + i // n + j) % (n * n) + 1) for j in range(n * n)]
+            for i in range(n * n)
+        ]
+
+    def __str__(self) -> str:
+        """Вывод таблицы в виде строки"""
+        width = len(str(self.n * self.n))
+
+        lines = []
+        for i, row in enumerate(self.table):
+            if i > 0 and i % self.n == 0:
+                divider = "".join("+" if c == "|" else "-" for c in lines[0])
+                lines.append(divider)
+
+            blocks = [
+                " ".join(f"{cell:{width}}" for cell in row[i : i + self.n])
+                for i in range(0, self.n * self.n, self.n)
+            ]
+            lines.append(" | ".join(blocks))
+
+        return "\n".join(lines)
+
+    def transpose(self):
+        """Транспонирование всей таблицы"""
+        self.table = [list(row) for row in zip(*self.table)]
+
+    def swap_rows_single(self):
+        """Обмен двух строк"""
+        l1 = random.randint(0, self.n * self.n - 1)
+        while True:
+            l2 = random.randint(0, self.n * self.n - 1)
+            if l1 != l2:
+                break
+
+        self.table[l1], self.table[l2] = self.table[l2], self.table[l1]
+
+    def swap_colums_single(self):
+        """Обмен двух столбцов"""
+        self.transpose()
+        self.swap_rows_single()
+        self.transpose()
+
+    def swap_rows_area(self):
+        """Обмен двух районов по горизонтали"""
+        area1 = random.randint(0, self.n - 1)
+        while True:
+            area2 = random.randint(0, self.n - 1)
+            if area1 != area2:
+                break
+
+        for i in range(0, self.n):
+            l1 = area1 * self.n + i
+            l2 = area2 * self.n + i
+            self.table[l1], self.table[l2] = self.table[l2], self.table[l1]
+
+    def swap_colums_area(self):
+        """Обмен двух районов по вертикали"""
+        self.transpose()
+        self.swap_rows_area()
+        self.transpose()
+
+    def shuffle(self, count=10):
+        """Перемешивание таблицы `count` раз"""
+        shuffle_func = [
+            self.transpose,
+            self.swap_rows_single,
+            self.swap_colums_single,
+            self.swap_rows_area,
+            self.swap_colums_area,
+        ]
+        for _ in range(0, count):
+            random.choice(shuffle_func)()
+
+    def validate(self) -> bool:
+        """Проверка таблицы с судоку на валидность"""
+
+        # Проверка строк
+        for i in range(0, self.n * self.n):
+            unused = [True] * (self.n * self.n)
+            for j in range(0, self.n * self.n):
+                if self.table[i][j] == 0:
+                    continue
+                unused[self.table[i][j] - 1] = False
+            if any(unused):
+                return False
+
+        # Проверка столбцов
+        for j in range(0, self.n * self.n):
+            unused = [True] * (self.n * self.n)
+            for i in range(0, self.n * self.n):
+                if self.table[i][j] == 0:
+                    continue
+                unused[self.table[i][j] - 1] = False
+            if any(unused):
+                return False
+
+        # Проверка районов
+        for ai in range(0, self.n):
+            for aj in range(0, self.n):
+                unused = [True] * (self.n * self.n)
+                for i in range(0, self.n):
+                    for j in range(0, self.n):
+                        if self.table[ai * self.n + i][aj * self.n + j] == 0:
+                            continue
+                        unused[self.table[ai * self.n + i][aj * self.n + j] - 1] = False
+                if any(unused):
+                    return False
+        return True
