@@ -2,19 +2,22 @@ import random
 from typing import Generator
 
 
-class Grid:
+class Sudoku:
     """Класс таблицы судоку.
     `self.n` - размер района (по умолчанию 3)
-    0 - пустая клетка.
+    0 - пустая клетка (hole).
     Клетки с 1 до `self.n * self.n` - заполненные."""
 
-    def __init__(self, n: int = 3):
-        """Генерация базовой таблицы судоку"""
+    def __init__(self, n: int = 3, shuffle_count: int = 15, holes_count: int = 20):
+        """Создание таблицы судоку"""
         self.n: int = n
+        self.holes_count: int = holes_count
         self.table: list[list[int]] = [
             [((i * n + i // n + j) % (n * n) + 1) for j in range(n * n)]
             for i in range(n * n)
         ]
+        self.shuffle(shuffle_count)
+        self.create_holes(holes_count)
 
     def __str__(self) -> str:
         """Вывод таблицы в виде строки"""
@@ -73,7 +76,7 @@ class Grid:
         self.swap_rows_area()
         self.transpose()
 
-    def shuffle(self, count=10):
+    def shuffle(self, count=15):
         """Перемешивание таблицы `count` раз"""
         shuffle_func = [
             self.transpose,
@@ -85,7 +88,7 @@ class Grid:
         for _ in range(0, count):
             random.choice(shuffle_func)()
 
-    def guess_cells(self, count: int):
+    def create_holes(self, count: int = 20):
         """Вычеркивание `count` случайных ячеек"""
         cells = random.sample(range(self.n**4), count)
         for cell in cells:
@@ -107,15 +110,16 @@ class Grid:
 
         return (i for i in range(1, self.n * self.n + 1) if unused[i])
 
-    def solve_cell(self, row: int, col: int, value: int) -> bool:
+    def solve_hole(self, row: int, col: int, value: int) -> bool:
         """Ход пользователя и его проверка в ячейке (`row`, `col`)"""
-        if not (1 <= value <= self.n * self.n):
+        if not (1 <= value <= self.n * self.n) or self.table[row][col] != 0:
             return False
 
         if value not in self.available_values(row, col):
             return False
 
         self.table[row][col] = value
+        self.holes_count -= 1
         return True
 
     def validate(self) -> bool:
