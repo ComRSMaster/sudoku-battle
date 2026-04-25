@@ -1,9 +1,7 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Any
 
-from fastapi import APIRouter, FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.generator import Sudoku
@@ -50,6 +48,7 @@ class GameState:
     sudoku: Sudoku
     user_ids: list[int]
 
+
 _users: dict[int, list[int]] = {}
 _games: dict[int, GameState] = {}
 _free_game_id: int = 0
@@ -70,6 +69,7 @@ async def _get_game(game_id: int, user_id: int) -> GameState:
 
 
 router = APIRouter(prefix="/games", tags=["Games"])
+
 
 @router.post("/", response_model=CreateGameResponse)
 async def create_game(payload: CreateGameRequest) -> CreateGameResponse:
@@ -115,4 +115,3 @@ async def apply_move(game_id: int, move: MoveRequest) -> GameStateResponse:
 async def delete_game(game_id: int, user_id: int) -> None:
     await _get_game(game_id, user_id)
     _games.pop(game_id)
-

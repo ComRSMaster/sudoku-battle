@@ -1,17 +1,59 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sudoku Battle</title>
     <script src="https://telegram.org/js/telegram-web-app.js?62"></script>
 </head>
+
 <body>
-    <div id="init-data" />
+    <p id="user-name"></p>
+    <p id="user-id"></p>
+    <p id="allows-pm"></p>
+    <p id="language-code"></p>
+    <img id="photo-url" width="150" />
+    <pre id="init-data"></pre>
+    <button id="create-sudoku" onclick="createSudoku()">Создать судоку</button>
     <script>
         const tg = window.Telegram.WebApp;
+        tg.ready();
         const initData = tg.initData;
-        document.getElementById('init-data').textContent = initData;
+        const unsafeData = tg.initDataUnsafe;
+        document.getElementById('user-name').textContent = 'Имя: ' + unsafeData.user.first_name + ' ' + unsafeData.user.last_name;
+        document.getElementById('user-id').textContent = 'id: ' + unsafeData.user.id;
+        document.getElementById('allows-pm').textContent = 'allows_pm: ' + unsafeData.user.allows_write_to_pm;
+        document.getElementById('language-code').textContent = 'language_code: ' + unsafeData.user.language_code;
+        document.getElementById('photo-url').src = unsafeData.user.photo_url;
+        document.getElementById('init-data').textContent = JSON.stringify(unsafeData, null, 4);
+
+        async function createSudoku() {
+            try {
+                const response = await fetch('/api/games/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `tma ${tg.initData}`
+                    },
+                    // TODO: поменять user_id на авторизацию через initData
+                    body: JSON.stringify({user_id: unsafeData.user.id})
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Ошибка: ${response.status}`);
+                }
+
+                const gameData = await response.json();
+                alert('Игра успешно создана! ID: ' + gameData.game_id);
+
+            } catch (error) {
+                console.error('Ошибка при создании игры:', error);
+                alert('Не удалось создать игру');
+            }
+        }
+
     </script>
 </body>
+
 </html>
