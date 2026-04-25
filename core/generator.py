@@ -56,7 +56,7 @@ class Sudoku:
 
         self.table[l1], self.table[l2] = self.table[l2], self.table[l1]
 
-    def swap_colums_single(self) -> None:
+    def swap_columns_single(self) -> None:
         """Обмен двух столбцов"""
         self.transpose()
         self.swap_rows_single()
@@ -75,7 +75,7 @@ class Sudoku:
             l2 = area2 * self.n + i
             self.table[l1], self.table[l2] = self.table[l2], self.table[l1]
 
-    def swap_colums_area(self) -> None:
+    def swap_columns_area(self) -> None:
         """Обмен двух районов по вертикали"""
         self.transpose()
         self.swap_rows_area()
@@ -86,9 +86,9 @@ class Sudoku:
         shuffle_func = [
             self.transpose,
             self.swap_rows_single,
-            self.swap_colums_single,
+            self.swap_columns_single,
             self.swap_rows_area,
-            self.swap_colums_area,
+            self.swap_columns_area,
         ]
         for _ in range(0, count):
             random.choice(shuffle_func)()
