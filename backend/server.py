@@ -1,0 +1,14 @@
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+
+from backend.api import games
+
+app = FastAPI(
+    title="Sudoku Battle API",
+    description="FastAPI backend for Sudoku Battle game sessions.",
+    version="0.1.0",
+)
+
+app.include_router(games.router, prefix="/api")
+
+app.mount("/", StaticFiles(directory="../frontend", html=True), name="frontend")
