@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from core.generator import Sudoku
 
 BOARD_SIZE = 3
-DEFAULT_HOLES = 45
+DEFAULT_HOLES = 20
 
 
 class MoveRequest(BaseModel):
