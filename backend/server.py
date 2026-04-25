@@ -11,4 +11,12 @@ app = FastAPI(
 
 app.include_router(games.router, prefix="/api")
 
-app.mount("/", StaticFiles(directory="../frontend", html=True), name="frontend")
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+
+
+async def run_server() -> None:
+    import uvicorn
+
+    config = uvicorn.Config("backend.server:app")
+    server = uvicorn.Server(config)
+    await server.serve()
