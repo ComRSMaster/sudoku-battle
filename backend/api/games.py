@@ -1,6 +1,5 @@
 """API для создания и изменения игровых партий судоку"""
 
-import asyncio
 from dataclasses import dataclass
 
 from fastapi import APIRouter, HTTPException
@@ -63,16 +62,14 @@ class GameState:
     user_ids: list[int]
 
 
-_users: dict[int, list[int]] = {}
+# TODO: заменить на Redis
 _games: dict[int, GameState] = {}
 _free_game_id: int = 0
-_games_lock = asyncio.Lock()
 
 
 async def _get_game(game_id: int, user_id: int) -> GameState:
     """Получить игру из хранилища и проверить доступ пользователя"""
-    async with _games_lock:
-        game = _games.get(game_id)
+    game = _games.get(game_id)
 
     if game is None:
         raise HTTPException(status_code=404, detail="Game not found")
@@ -89,16 +86,16 @@ router = APIRouter(prefix="/games", tags=["Games"])
 @router.post("/", response_model=CreateGameResponse)
 async def create_game(payload: CreateGameRequest) -> CreateGameResponse:
     """Создать новую игру и вернуть её идентификатор `game_id`"""
+
     game = GameState(
         sudoku=Sudoku(holes_count=payload.holes_count),
         user_ids=[payload.user_id],
     )
 
-    async with _games_lock:
-        global _free_game_id
-        game_id = _free_game_id
-        _games[game_id] = game
-        _free_game_id += 1
+    global _free_game_id
+    game_id = _free_game_id
+    _games[game_id] = game
+    _free_game_id += 1
 
     return CreateGameResponse(
         sudoku=SudokuSchema.model_validate(game.sudoku),
@@ -110,6 +107,7 @@ async def create_game(payload: CreateGameRequest) -> CreateGameResponse:
 @router.get("/{game_id}", response_model=GameStateResponse)
 async def get_game(game_id: int, user_id: int) -> GameStateResponse:
     """Получить текущее состояние игры по её идентификатору `game_id`"""
+
     game = await _get_game(game_id, user_id)
     return GameStateResponse(
         sudoku=SudokuSchema.model_validate(game.sudoku), user_ids=game.user_ids
@@ -119,6 +117,7 @@ async def get_game(game_id: int, user_id: int) -> GameStateResponse:
 @router.post("/{game_id}/move", response_model=GameStateResponse)
 async def apply_move(game_id: int, move: MoveRequest) -> GameStateResponse:
     """Применить ход игрока к игре по её идентификатору `game_id`"""
+
     game = await _get_game(game_id, move.user_id)
 
     if not game.sudoku.solve_hole(move.row, move.col, move.value):
@@ -132,5 +131,6 @@ async def apply_move(game_id: int, move: MoveRequest) -> GameStateResponse:
 @router.delete("/{game_id}", status_code=204)
 async def delete_game(game_id: int, user_id: int) -> None:
     """Удалить игру по её идентификатору `game_id`"""
+
     await _get_game(game_id, user_id)
     _games.pop(game_id)
