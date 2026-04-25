@@ -8,7 +8,12 @@ class Sudoku:
     0 - пустая клетка (hole).
     Клетки с 1 до `self.n * self.n` - заполненные."""
 
-    def __init__(self, n: int = 3, shuffle_count: int = 15, holes_count: int = 20):
+    def __init__(
+        self,
+        n: int = 3,
+        shuffle_count: int = 15,
+        holes_count: int = 20,
+    ) -> None:
         """Создание таблицы судоку"""
         self.n: int = n
         self.holes_count: int = holes_count
@@ -37,11 +42,11 @@ class Sudoku:
 
         return "\n".join(lines)
 
-    def transpose(self):
+    def transpose(self) -> None:
         """Транспонирование всей таблицы"""
         self.table = [list(row) for row in zip(*self.table)]
 
-    def swap_rows_single(self):
+    def swap_rows_single(self) -> None:
         """Обмен двух строк"""
         l1 = random.randint(0, self.n * self.n - 1)
         while True:
@@ -51,13 +56,13 @@ class Sudoku:
 
         self.table[l1], self.table[l2] = self.table[l2], self.table[l1]
 
-    def swap_colums_single(self):
+    def swap_colums_single(self) -> None:
         """Обмен двух столбцов"""
         self.transpose()
         self.swap_rows_single()
         self.transpose()
 
-    def swap_rows_area(self):
+    def swap_rows_area(self) -> None:
         """Обмен двух районов по горизонтали"""
         area1 = random.randint(0, self.n - 1)
         while True:
@@ -70,13 +75,13 @@ class Sudoku:
             l2 = area2 * self.n + i
             self.table[l1], self.table[l2] = self.table[l2], self.table[l1]
 
-    def swap_colums_area(self):
+    def swap_colums_area(self) -> None:
         """Обмен двух районов по вертикали"""
         self.transpose()
         self.swap_rows_area()
         self.transpose()
 
-    def shuffle(self, count=15):
+    def shuffle(self, count: int = 15) -> None:
         """Перемешивание таблицы `count` раз"""
         shuffle_func = [
             self.transpose,
@@ -88,7 +93,7 @@ class Sudoku:
         for _ in range(0, count):
             random.choice(shuffle_func)()
 
-    def create_holes(self, count: int = 20):
+    def create_holes(self, count: int = 20) -> None:
         """Вычеркивание `count` случайных ячеек"""
         cells = random.sample(range(self.n**4), count)
         for cell in cells:

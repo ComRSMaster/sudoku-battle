@@ -6,7 +6,7 @@ from backend.server import run_server
 from bot.bot import run_bot
 
 
-async def main():
+async def main() -> None:
     await asyncio.gather(run_bot(), run_server())
 
 
