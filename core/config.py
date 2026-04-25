@@ -1,7 +1,11 @@
+"""Конфигурация игры"""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Настройки, загружаемые из файла `.env`"""
+
     bot_token: str
     web_app_url: str
 

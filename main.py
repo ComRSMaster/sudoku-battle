@@ -1,3 +1,5 @@
+"""Запуск игры"""
+
 import asyncio
 import logging
 import sys
@@ -7,6 +9,7 @@ from bot.bot import run_bot
 
 
 async def main() -> None:
+    """Запустить Telegram-бота и HTTP-сервер одновременно асинхронно"""
     await asyncio.gather(run_bot(), run_server())
 
 

@@ -1,3 +1,5 @@
+"""Генерация и проверка таблиц судоку"""
+
 import random
 from typing import Generator
 
@@ -6,7 +8,7 @@ class Sudoku:
     """Класс таблицы судоку.
     `self.n` - размер района (по умолчанию 3)
     0 - пустая клетка (hole).
-    Клетки с 1 до `self.n * self.n` - заполненные."""
+    Клетки с 1 до `self.n * self.n` - заполненные"""
 
     def __init__(
         self,
@@ -15,6 +17,7 @@ class Sudoku:
         holes_count: int = 20,
     ) -> None:
         """Создание таблицы судоку"""
+
         self.n: int = n
         self.holes_count: int = holes_count
         self.table: list[list[int]] = [
@@ -26,6 +29,7 @@ class Sudoku:
 
     def __str__(self) -> str:
         """Вывод таблицы в виде строки"""
+
         width = len(str(self.n * self.n))
 
         lines = []
@@ -44,10 +48,12 @@ class Sudoku:
 
     def transpose(self) -> None:
         """Транспонирование всей таблицы"""
+
         self.table = [list(row) for row in zip(*self.table)]
 
     def swap_rows_single(self) -> None:
         """Обмен двух строк"""
+
         l1 = random.randint(0, self.n * self.n - 1)
         while True:
             l2 = random.randint(0, self.n * self.n - 1)
@@ -58,12 +64,14 @@ class Sudoku:
 
     def swap_columns_single(self) -> None:
         """Обмен двух столбцов"""
+
         self.transpose()
         self.swap_rows_single()
         self.transpose()
 
     def swap_rows_area(self) -> None:
         """Обмен двух районов по горизонтали"""
+
         area1 = random.randint(0, self.n - 1)
         while True:
             area2 = random.randint(0, self.n - 1)
@@ -77,12 +85,14 @@ class Sudoku:
 
     def swap_columns_area(self) -> None:
         """Обмен двух районов по вертикали"""
+
         self.transpose()
         self.swap_rows_area()
         self.transpose()
 
     def shuffle(self, count: int = 15) -> None:
         """Перемешивание таблицы `count` раз"""
+
         shuffle_func = [
             self.transpose,
             self.swap_rows_single,
@@ -95,12 +105,14 @@ class Sudoku:
 
     def create_holes(self, count: int = 20) -> None:
         """Вычеркивание `count` случайных ячеек"""
+
         cells = random.sample(range(self.n**4), count)
         for cell in cells:
             self.table[cell // (self.n * self.n)][cell % (self.n * self.n)] = 0
 
     def available_values(self, row: int, col: int) -> Generator[int, None, None]:
         """Возвращает список доступных значений для ячейки (`row`, `col`)"""
+
         unused = [True] * (self.n * self.n + 1)
 
         for i in range(0, self.n * self.n):
@@ -117,6 +129,7 @@ class Sudoku:
 
     def solve_hole(self, row: int, col: int, value: int) -> bool:
         """Ход пользователя и его проверка в ячейке (`row`, `col`)"""
+
         if not (1 <= value <= self.n * self.n) or self.table[row][col] != 0:
             return False
 

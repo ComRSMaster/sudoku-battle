@@ -1,3 +1,5 @@
+"""Telegram-бот игры"""
+
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -26,6 +28,7 @@ main_menu_keyboard = InlineKeyboardMarkup(
 
 @dp.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
+    """Отправить пользователю кнопку запуска Web App"""
     await message.answer(
         "Привет, это бот Sudoku Battle! Нажимай на кнопку ниже, чтобы запустить игру:",
         reply_markup=main_menu_keyboard,
@@ -33,10 +36,11 @@ async def command_start_handler(message: Message) -> None:
 
 
 async def run_bot() -> None:
+    """Запустить polling Telegram-бота"""
     bot = Bot(
         token=settings.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
 
-    # TODO: заменить на webhook
+    # TODO: заменить pooling на webhook
     await dp.start_polling(bot)
