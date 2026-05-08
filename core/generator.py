@@ -3,6 +3,12 @@
 import random
 from typing import Generator
 
+from core.constants import (
+    DEFAULT_BOARD_SIZE,
+    DEFAULT_HOLES_COUNT,
+    DEFAULT_SHUFFLE_COUNT,
+)
+
 
 class Sudoku:
     """Класс таблицы судоку.
@@ -12,9 +18,9 @@ class Sudoku:
 
     def __init__(
         self,
-        n: int = 3,
-        shuffle_count: int = 15,
-        holes_count: int = 20,
+        n: int = DEFAULT_BOARD_SIZE,
+        shuffle_count: int = DEFAULT_SHUFFLE_COUNT,
+        holes_count: int = DEFAULT_HOLES_COUNT,
     ) -> None:
         """Создание таблицы судоку"""
 
@@ -90,7 +96,7 @@ class Sudoku:
         self.swap_rows_area()
         self.transpose()
 
-    def shuffle(self, count: int = 15) -> None:
+    def shuffle(self, count: int = DEFAULT_SHUFFLE_COUNT) -> None:
         """Перемешивание таблицы `count` раз"""
 
         shuffle_func = [
@@ -103,7 +109,7 @@ class Sudoku:
         for _ in range(0, count):
             random.choice(shuffle_func)()
 
-    def create_holes(self, count: int = 20) -> None:
+    def create_holes(self, count: int = DEFAULT_HOLES_COUNT) -> None:
         """Вычеркивание `count` случайных ячеек"""
 
         cells = random.sample(range(self.n**4), count)
