@@ -8,6 +8,13 @@ from core.constants import (
     DEFAULT_HOLES_COUNT,
     DEFAULT_SHUFFLE_COUNT,
 )
+from core.exceptions import (
+    CellAlreadyFilledError,
+    CellOutOfBoundsError,
+    InvalidCellValueError,
+    InvalidHolesCountError,
+    SudokuRulesViolationError,
+)
 
 
 class Sudoku:
@@ -112,13 +119,25 @@ class Sudoku:
     def create_holes(self, count: int = DEFAULT_HOLES_COUNT) -> None:
         """Вычеркивание `count` случайных ячеек"""
 
+        max_holes_count = self.n**4 - 1
+        if not 1 <= count <= max_holes_count:
+            raise InvalidHolesCountError(count=count, max_count=max_holes_count)
+
         cells = random.sample(range(self.n**4), count)
         for cell in cells:
             self.table[cell // (self.n * self.n)][cell % (self.n * self.n)] = 0
 
+    def _validate_coordinates(self, row: int, col: int) -> None:
+        """Проверить, что координаты ячейки находятся в пределах поля"""
+
+        board_size = self.n * self.n
+        if not (0 <= row < board_size and 0 <= col < board_size):
+            raise CellOutOfBoundsError(row=row, col=col, board_size=board_size)
+
     def available_values(self, row: int, col: int) -> Generator[int, None, None]:
         """Возвращает список доступных значений для ячейки (`row`, `col`)"""
 
+        self._validate_coordinates(row, col)
         unused = [True] * (self.n * self.n + 1)
 
         for i in range(0, self.n * self.n):
@@ -133,18 +152,22 @@ class Sudoku:
 
         return (i for i in range(1, self.n * self.n + 1) if unused[i])
 
-    def solve_hole(self, row: int, col: int, value: int) -> bool:
-        """Ход пользователя и его проверка в ячейке (`row`, `col`)"""
+    def solve_hole(self, row: int, col: int, value: int) -> None:
+        """Ход пользователя в ячейке (`row`, `col`)"""
 
-        if not (1 <= value <= self.n * self.n) or self.table[row][col] != 0:
-            return False
+        self._validate_coordinates(row, col)
+
+        if not (1 <= value <= self.n * self.n):
+            raise InvalidCellValueError(value=value, max_value=self.n * self.n)
+
+        if self.table[row][col] != 0:
+            raise CellAlreadyFilledError(row=row, col=col)
 
         if value not in self.available_values(row, col):
-            return False
+            raise SudokuRulesViolationError(row=row, col=col, value=value)
 
         self.table[row][col] = value
         self.holes_count -= 1
-        return True
 
     def _validate_rows(self) -> bool:
         """Проверить, что каждая строка содержит все значения без пропусков"""
