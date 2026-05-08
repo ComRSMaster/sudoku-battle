@@ -140,38 +140,53 @@ class Sudoku:
         self.holes_count -= 1
         return True
 
-    def validate(self) -> bool:
-        """Проверка таблицы с судоку на валидность"""
+    def _validate_rows(self) -> bool:
+        """Проверить, что каждая строка содержит все значения без пропусков"""
 
-        # Проверка строк
-        for i in range(0, self.n * self.n):
+        for row in range(0, self.n * self.n):
             unused = [True] * (self.n * self.n)
-            for j in range(0, self.n * self.n):
-                if self.table[i][j] == 0:
+            for col in range(0, self.n * self.n):
+                if self.table[row][col] == 0:
                     continue
-                unused[self.table[i][j] - 1] = False
+                unused[self.table[row][col] - 1] = False
             if any(unused):
                 return False
+        return True
 
-        # Проверка столбцов
-        for j in range(0, self.n * self.n):
+    def _validate_columns(self) -> bool:
+        """Проверить, что каждый столбец содержит все значения без пропусков"""
+
+        for col in range(0, self.n * self.n):
             unused = [True] * (self.n * self.n)
-            for i in range(0, self.n * self.n):
-                if self.table[i][j] == 0:
+            for row in range(0, self.n * self.n):
+                if self.table[row][col] == 0:
                     continue
-                unused[self.table[i][j] - 1] = False
+                unused[self.table[row][col] - 1] = False
             if any(unused):
                 return False
+        return True
 
-        # Проверка районов
-        for ai in range(0, self.n):
-            for aj in range(0, self.n):
+    def _validate_areas(self) -> bool:
+        """Проверить, что каждый район содержит все значения без пропусков"""
+
+        for arow in range(0, self.n):
+            for acol in range(0, self.n):
                 unused = [True] * (self.n * self.n)
-                for i in range(0, self.n):
-                    for j in range(0, self.n):
-                        if self.table[ai * self.n + i][aj * self.n + j] == 0:
+                for row in range(0, self.n):
+                    for col in range(0, self.n):
+                        value = self.table[arow * self.n + row][acol * self.n + col]
+                        if value == 0:
                             continue
-                        unused[self.table[ai * self.n + i][aj * self.n + j] - 1] = False
+                        unused[value - 1] = False
                 if any(unused):
                     return False
         return True
+
+    def validate(self) -> bool:
+        """Проверка таблицы с судоку на валидность"""
+
+        return (
+            self._validate_rows()
+            and self._validate_columns()
+            and self._validate_areas()
+        )
