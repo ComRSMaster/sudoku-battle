@@ -2,22 +2,21 @@
 
 from dataclasses import dataclass
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
+from core.constants import DEFAULT_BOARD_SIZE, DEFAULT_HOLES_COUNT
+from core.exceptions import GameAccessDeniedError, GameNotFoundError
 from core.generator import Sudoku
-
-BOARD_SIZE = 3
-DEFAULT_HOLES = 20
 
 
 class MoveRequest(BaseModel):
     """Тело запроса для хода в судоку"""
 
     user_id: int = Field(ge=0)
-    row: int = Field(ge=0, le=BOARD_SIZE * BOARD_SIZE - 1)
-    col: int = Field(ge=0, le=BOARD_SIZE * BOARD_SIZE - 1)
-    value: int = Field(ge=1, le=BOARD_SIZE * BOARD_SIZE)
+    row: int = Field(ge=0, le=DEFAULT_BOARD_SIZE * DEFAULT_BOARD_SIZE - 1)
+    col: int = Field(ge=0, le=DEFAULT_BOARD_SIZE * DEFAULT_BOARD_SIZE - 1)
+    value: int = Field(ge=1, le=DEFAULT_BOARD_SIZE * DEFAULT_BOARD_SIZE)
 
 
 # TODO: заменить user_id на аутентификацию через Telegram Mini Apps
@@ -27,7 +26,11 @@ class MoveRequest(BaseModel):
 class CreateGameRequest(BaseModel):
     """Тело запроса для создания новой игры"""
 
-    holes_count: int = Field(default=DEFAULT_HOLES, ge=1, le=BOARD_SIZE**4 - 1)
+    holes_count: int = Field(
+        default=DEFAULT_HOLES_COUNT,
+        ge=1,
+        le=DEFAULT_BOARD_SIZE**4 - 1,
+    )
     user_id: int = Field(ge=0)
 
 
@@ -67,15 +70,15 @@ _games: dict[int, GameState] = {}
 _free_game_id: int = 0
 
 
-async def _get_game(game_id: int, user_id: int) -> GameState:
+def _get_game(game_id: int, user_id: int) -> GameState:
     """Получить игру из хранилища и проверить доступ пользователя"""
     game = _games.get(game_id)
 
     if game is None:
-        raise HTTPException(status_code=404, detail="Game not found")
+        raise GameNotFoundError(game_id)
 
     if user_id not in game.user_ids:
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise GameAccessDeniedError(game_id=game_id, user_id=user_id)
 
     return game
 
@@ -108,7 +111,7 @@ async def create_game(payload: CreateGameRequest) -> CreateGameResponse:
 async def get_game(game_id: int, user_id: int) -> GameStateResponse:
     """Получить текущее состояние игры по её идентификатору `game_id`"""
 
-    game = await _get_game(game_id, user_id)
+    game = _get_game(game_id, user_id)
     return GameStateResponse(
         sudoku=SudokuSchema.model_validate(game.sudoku), user_ids=game.user_ids
     )
@@ -118,11 +121,8 @@ async def get_game(game_id: int, user_id: int) -> GameStateResponse:
 async def apply_move(game_id: int, move: MoveRequest) -> GameStateResponse:
     """Применить ход игрока к игре по её идентификатору `game_id`"""
 
-    game = await _get_game(game_id, move.user_id)
-
-    if not game.sudoku.solve_hole(move.row, move.col, move.value):
-        raise HTTPException(status_code=400, detail="Invalid move")
-
+    game = _get_game(game_id, move.user_id)
+    game.sudoku.solve_hole(move.row, move.col, move.value)
     return GameStateResponse(
         sudoku=SudokuSchema.model_validate(game.sudoku), user_ids=game.user_ids
     )
@@ -132,5 +132,5 @@ async def apply_move(game_id: int, move: MoveRequest) -> GameStateResponse:
 async def delete_game(game_id: int, user_id: int) -> None:
     """Удалить игру по её идентификатору `game_id`"""
 
-    await _get_game(game_id, user_id)
+    _get_game(game_id, user_id)
     _games.pop(game_id)
