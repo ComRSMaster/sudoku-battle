@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import games
+from backend.api import games, leaderboards
 from core.exceptions import (
     GameAccessDeniedError,
     GameNotFoundError,
@@ -49,6 +49,7 @@ async def sudoku_error_handler(
 
 
 app.include_router(games.router, prefix="/api")
+app.include_router(leaderboards.router, prefix="/api")
 
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 

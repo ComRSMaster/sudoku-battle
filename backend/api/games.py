@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from core.constants import DEFAULT_REG_SIZE, DEFAULT_HOLES_COUNT
 from core.exceptions import GameAccessDeniedError, GameNotFoundError
 from core.generator import Sudoku
+from backend.api import leaderboards
 
 
 class MoveRequest(BaseModel):
@@ -123,6 +124,10 @@ async def apply_move(game_id: int, move: MoveRequest) -> GameStateResponse:
 
     game = _get_game(game_id, move.user_id)
     game.sudoku.solve_hole(move.row, move.col, move.value)
+
+    if game.sudoku.holes_count == 0:
+        leaderboards.increment_user_score(move.user_id)
+
     return GameStateResponse(
         sudoku=SudokuSchema.model_validate(game.sudoku), user_ids=game.user_ids
     )
