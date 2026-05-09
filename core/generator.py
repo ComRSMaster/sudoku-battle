@@ -4,8 +4,8 @@ import random
 from typing import Generator
 
 from core.constants import (
-    DEFAULT_BOARD_SIZE,
     DEFAULT_HOLES_COUNT,
+    DEFAULT_REG_SIZE,
     DEFAULT_SHUFFLE_COUNT,
 )
 from core.exceptions import (
@@ -25,7 +25,7 @@ class Sudoku:
 
     def __init__(
         self,
-        n: int = DEFAULT_BOARD_SIZE,
+        n: int = DEFAULT_REG_SIZE,
         shuffle_count: int = DEFAULT_SHUFFLE_COUNT,
         holes_count: int = DEFAULT_HOLES_COUNT,
     ) -> None:
@@ -67,13 +67,14 @@ class Sudoku:
     def swap_rows_single(self) -> None:
         """Обмен двух строк"""
 
-        l1 = random.randint(0, self.n * self.n - 1)
+        row = random.randint(0, self.n - 1)
+        l1 = random.randint(0, self.n - 1)
         while True:
-            l2 = random.randint(0, self.n * self.n - 1)
+            l2 = random.randint(0, self.n - 1)
             if l1 != l2:
                 break
 
-        self.table[l1], self.table[l2] = self.table[l2], self.table[l1]
+        self.table[row * self.n + l1], self.table[row * self.n + l2] = self.table[row * self.n + l2], self.table[row * self.n + l1]
 
     def swap_columns_single(self) -> None:
         """Обмен двух столбцов"""

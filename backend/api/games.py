@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
-from core.constants import DEFAULT_BOARD_SIZE, DEFAULT_HOLES_COUNT
+from core.constants import DEFAULT_REG_SIZE, DEFAULT_HOLES_COUNT
 from core.exceptions import GameAccessDeniedError, GameNotFoundError
 from core.generator import Sudoku
 
@@ -14,9 +14,9 @@ class MoveRequest(BaseModel):
     """Тело запроса для хода в судоку"""
 
     user_id: int = Field(ge=0)
-    row: int = Field(ge=0, le=DEFAULT_BOARD_SIZE * DEFAULT_BOARD_SIZE - 1)
-    col: int = Field(ge=0, le=DEFAULT_BOARD_SIZE * DEFAULT_BOARD_SIZE - 1)
-    value: int = Field(ge=1, le=DEFAULT_BOARD_SIZE * DEFAULT_BOARD_SIZE)
+    row: int = Field(ge=0, le=DEFAULT_REG_SIZE * DEFAULT_REG_SIZE - 1)
+    col: int = Field(ge=0, le=DEFAULT_REG_SIZE * DEFAULT_REG_SIZE - 1)
+    value: int = Field(ge=1, le=DEFAULT_REG_SIZE * DEFAULT_REG_SIZE)
 
 
 # TODO: заменить user_id на аутентификацию через Telegram Mini Apps
@@ -29,7 +29,7 @@ class CreateGameRequest(BaseModel):
     holes_count: int = Field(
         default=DEFAULT_HOLES_COUNT,
         ge=1,
-        le=DEFAULT_BOARD_SIZE**4 - 1,
+        le=DEFAULT_REG_SIZE**4 - 1,
     )
     user_id: int = Field(ge=0)
 
