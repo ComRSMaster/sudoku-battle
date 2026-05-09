@@ -24,6 +24,7 @@
 			const data = await response.json();
 			gameId = data.game_id;
 			board = data.sudoku.table;
+			startTimer();
 		} catch (error) {
 			console.error('Failed to create game:', error);
 		}
@@ -149,7 +150,6 @@
 	}
 
 	onMount(() => {
-		startTimer();
 		createGame();
 	});
 
