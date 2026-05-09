@@ -1,6 +1,6 @@
 """Константы по умолчанию для игры"""
 
-DEFAULT_BOARD_SIZE = 3
+DEFAULT_REG_SIZE = 3
 """Размер доски NxN по умолчанию"""
 
 DEFAULT_SHUFFLE_COUNT = 15
