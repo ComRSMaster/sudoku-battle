@@ -1,141 +1,77 @@
-"""API для создания и изменения игровых партий судоку"""
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from dataclasses import dataclass
-
-from fastapi import APIRouter
-from pydantic import BaseModel, ConfigDict, Field
-
-from core.constants import DEFAULT_REG_SIZE, DEFAULT_HOLES_COUNT
-from core.exceptions import GameAccessDeniedError, GameNotFoundError
+from backend.crud import games as crud_games
+from backend.crud import users as crud_users
+from backend.database import AsyncSessionLocal, get_db
+from backend.schemas.games import (
+    CreateGameRequest,
+    GameStateResponse,
+    SudokuSchema,
+)
+from backend.sockets.manager import manager
 from core.generator import Sudoku
-from backend.api import leaderboards
-
-
-class MoveRequest(BaseModel):
-    """Тело запроса для хода в судоку"""
-
-    user_id: int = Field(ge=0)
-    row: int = Field(ge=0, le=DEFAULT_REG_SIZE * DEFAULT_REG_SIZE - 1)
-    col: int = Field(ge=0, le=DEFAULT_REG_SIZE * DEFAULT_REG_SIZE - 1)
-    value: int = Field(ge=1, le=DEFAULT_REG_SIZE * DEFAULT_REG_SIZE)
-
-
-# TODO: заменить user_id на аутентификацию через Telegram Mini Apps
-# TODO: пользователь может ввести неправильные клетки так, чтобы судоку было невозможно разгадать, надо разрешить пользователю отменять свои ходы
-
-
-class CreateGameRequest(BaseModel):
-    """Тело запроса для создания новой игры"""
-
-    holes_count: int = Field(
-        default=DEFAULT_HOLES_COUNT,
-        ge=1,
-        le=DEFAULT_REG_SIZE**4 - 1,
-    )
-    user_id: int = Field(ge=0)
-
-
-class SudokuSchema(BaseModel):
-    """Схема судоку, отдаваемая через API"""
-
-    n: int
-    holes_count: int
-    table: list[list[int]]
-    model_config = ConfigDict(from_attributes=True)
-
-
-class GameStateResponse(BaseModel):
-    """Схема ответа с состоянием игры"""
-
-    sudoku: SudokuSchema
-    user_ids: list[int]
-    model_config = ConfigDict(from_attributes=True)
-
-
-class CreateGameResponse(GameStateResponse):
-    """Схема ответа при создании игры"""
-
-    game_id: int
-
-
-@dataclass
-class GameState:
-    """Внутреннее состояние одной игры"""
-
-    sudoku: Sudoku
-    user_ids: list[int]
-
-
-# TODO: заменить на Redis
-_games: dict[int, GameState] = {}
-_free_game_id: int = 0
-
-
-def _get_game(game_id: int, user_id: int) -> GameState:
-    """Получить игру из хранилища и проверить доступ пользователя"""
-    game = _games.get(game_id)
-
-    if game is None:
-        raise GameNotFoundError(game_id)
-
-    if user_id not in game.user_ids:
-        raise GameAccessDeniedError(game_id=game_id, user_id=user_id)
-
-    return game
-
 
 router = APIRouter(prefix="/games", tags=["Games"])
 
 
-@router.post("/", response_model=CreateGameResponse)
-async def create_game(payload: CreateGameRequest) -> CreateGameResponse:
-    """Создать новую игру и вернуть её идентификатор `game_id`"""
-
-    game = GameState(
-        sudoku=Sudoku(holes_count=payload.holes_count),
-        user_ids=[payload.user_id],
-    )
-
-    global _free_game_id
-    game_id = _free_game_id
-    _games[game_id] = game
-    _free_game_id += 1
-
-    return CreateGameResponse(
-        sudoku=SudokuSchema.model_validate(game.sudoku),
-        user_ids=game.user_ids,
-        game_id=game_id,
-    )
-
-
-@router.get("/{game_id}", response_model=GameStateResponse)
-async def get_game(game_id: int, user_id: int) -> GameStateResponse:
-    """Получить текущее состояние игры по её идентификатору `game_id`"""
-
-    game = _get_game(game_id, user_id)
-    return GameStateResponse(
-        sudoku=SudokuSchema.model_validate(game.sudoku), user_ids=game.user_ids
-    )
-
-
-@router.post("/{game_id}/move", response_model=GameStateResponse)
-async def apply_move(game_id: int, move: MoveRequest) -> GameStateResponse:
-    """Применить ход игрока к игре по её идентификатору `game_id`"""
-
-    game = _get_game(game_id, move.user_id)
-    game.sudoku.solve_hole(move.row, move.col, move.value)
-
-    if game.sudoku.holes_count == 0:
-        leaderboards.increment_user_score(move.user_id)
+async def _get_game_state(game_id: int, db: AsyncSession) -> GameStateResponse:
+    """Вспомогательная функция для формирования состояния игры"""
+    game = await crud_games.get_game(db, game_id)
+    if not game:
+        raise ValueError(f"Game {game_id} not found")
 
     return GameStateResponse(
-        sudoku=SudokuSchema.model_validate(game.sudoku), user_ids=game.user_ids
+        game_id=game.id,
+        sudoku=SudokuSchema(n=game.n, holes_count=game.holes_count, table=game.table),
+        user_ids=[u.user_id for u in game.users],
     )
 
 
-@router.delete("/{game_id}", status_code=204)
-async def delete_game(game_id: int, user_id: int) -> None:
-    """Удалить игру по её идентификатору `game_id`"""
+@router.post("/", response_model=GameStateResponse)
+async def create_game(
+    payload: CreateGameRequest, db: AsyncSession = Depends(get_db)
+) -> GameStateResponse:
+    """Создать новую игру"""
+    await crud_users.get_user_or_create(db, payload.user_id)
+    game = await crud_games.create_game(db, payload.user_id, payload.holes_count)
+    return await _get_game_state(game.id, db)
 
-    _get_game(game_id, user_id)
-    _games.pop(game_id)
+
+@router.websocket("/{game_id}/ws/{user_id}")
+async def game_websocket(game_id: int, user_id: int, websocket: WebSocket):
+    """WebSocket для real-time взаимодействия"""
+    await manager.connect(game_id, websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            # Expecting {"row": int, "col": int, "value": int}
+
+            async with AsyncSessionLocal() as db:
+                game = await crud_games.get_game(db, game_id)
+                if not game or user_id not in [u.user_id for u in game.users]:
+                    await websocket.send_json(
+                        {"error": "Unauthorized or game not found"}
+                    )
+                    continue
+
+                sudoku = Sudoku(n=game.n, holes_count=game.holes_count)
+                sudoku.table = game.table
+
+                try:
+                    sudoku.solve_hole(data["row"], data["col"], data["value"])
+                    await crud_games.update_game_table(
+                        db, game_id, sudoku.table, sudoku.holes_count
+                    )
+
+                    if sudoku.holes_count == 0:
+                        await crud_users.increment_user_solved_count(db, user_id)
+
+                    state = await _get_game_state(game_id, db)
+                    await manager.broadcast(game_id, state.model_dump())
+
+                except Exception as e:
+                    await websocket.send_json({"error": str(e)})
+
+    except WebSocketDisconnect:
+        manager.disconnect(game_id, websocket)

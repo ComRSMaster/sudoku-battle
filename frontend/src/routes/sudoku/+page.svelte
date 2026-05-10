@@ -13,6 +13,7 @@
 	let timerId: ReturnType<typeof setInterval> | null = null;
 	let gameId = $state<number | null>(null);
 	let userId = 1;
+	let socket: WebSocket | null = null;
 
 	async function createGame(): Promise<void> {
 		try {
@@ -25,34 +26,31 @@
 			gameId = data.game_id;
 			board = data.sudoku.table;
 			startTimer();
+			connectWebSocket();
 		} catch (error) {
 			console.error('Failed to create game:', error);
 		}
 	}
 
-	async function loadGame(): Promise<void> {
+	function connectWebSocket() {
 		if (gameId === null) return;
-		try {
-			const response = await fetch(`/api/games/${gameId}?user_id=${userId}`);
-			const data = await response.json();
-			board = data.sudoku.table;
-		} catch (error) {
-			console.error('Failed to load game:', error);
-		}
+
+		const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+		socket = new WebSocket(
+			`${protocol}://${window.location.host}/api/games/${gameId}/ws/${userId}`
+		);
+
+		socket.onmessage = (event) => {
+			const data = JSON.parse(event.data);
+			if (data.sudoku) {
+				board = data.sudoku.table;
+			}
+		};
 	}
 
-	async function makeMove(row: number, col: number, value: number): Promise<void> {
-		if (gameId === null) return;
-		try {
-			const response = await fetch(`/api/games/${gameId}/move`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ user_id: userId, row, col, value })
-			});
-			const data = await response.json();
-			board = data.sudoku.table;
-		} catch (error) {
-			console.error('Failed to make move:', error);
+	function makeMove(row: number, col: number, value: number): void {
+		if (socket && socket.readyState === WebSocket.OPEN) {
+			socket.send(JSON.stringify({ row, col, value }));
 		}
 	}
 
@@ -155,6 +153,9 @@
 
 	onDestroy(() => {
 		stopTimer();
+		if (socket) {
+			socket.close();
+		}
 	});
 
 	function classes(...values: Array<string | false | null | undefined>) {
