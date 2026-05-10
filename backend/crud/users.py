@@ -68,3 +68,27 @@ async def increment_user_solved_count(db: AsyncSession, user_id: int) -> int:
     await db.commit()
     await db.refresh(user)
     return user.solved_count
+
+
+async def update_user_achievements(
+    db: AsyncSession, user_id: int, solved_time: int
+) -> dict:
+    """Проверить и обновить достижения пользователя"""
+    user = await get_user(db, user_id)
+    if not user:
+        raise UserNotFoundError(user_id)
+
+    achievements = user.achievements or {}
+
+    # Спринтер: < 2 минут (120 секунд)
+    if solved_time < 120:
+        achievements["sprinter"] = True
+
+    # Продвинутый игрок: >= 50 игр
+    if user.solved_count >= 50:
+        achievements["advanced_player"] = True
+
+    user.achievements = achievements
+    await db.commit()
+    await db.refresh(user)
+    return user.achievements

@@ -41,7 +41,9 @@ class Sudoku:
                 [((i * n + i // n + j) % (n * n) + 1) for j in range(n * n)]
                 for i in range(n * n)
             ]
-            self.holes_mask: list[list[bool]] = [[False] * (n * n) for _ in range(n * n)]
+            self.holes_mask: list[list[bool]] = [
+                [False] * (n * n) for _ in range(n * n)
+            ]
             self.shuffle(shuffle_count)
             self.create_holes(holes_count)
         else:
