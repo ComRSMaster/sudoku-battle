@@ -9,6 +9,10 @@
 		name: string;
 		photo_url: string;
 		solved_count: number;
+		achievements: {
+			sprinter: boolean;
+			advanced_player: boolean;
+		};
 	}
 
 	let userInfo = $state<UserInfo | null>(null);
@@ -54,6 +58,22 @@
 			<div class="card preset-outlined-surface-200-800 p-4">
 				<p class="text-xs tracking-[0.16em] uppercase opacity-50">Разгадано</p>
 				<p class="mt-2 text-3xl font-black">{userInfo.solved_count}</p>
+			</div>
+			<div class="col-span-2 card preset-outlined-surface-200-800 p-4">
+				<p class="mb-2 text-xs tracking-[0.16em] uppercase opacity-50">Достижения</p>
+				<div class="flex gap-2">
+					<span
+						class="rounded px-2 py-1 text-xs font-bold uppercase {userInfo.achievements.sprinter
+							? 'bg-green-500/20 text-green-400'
+							: 'bg-surface-700 opacity-50'}">Спринтер</span
+					>
+					<span
+						class="rounded px-2 py-1 text-xs font-bold uppercase {userInfo.achievements
+							.advanced_player
+							? 'bg-green-500/20 text-green-400'
+							: 'bg-surface-700 opacity-50'}">Продвинутый игрок</span
+					>
+				</div>
 			</div>
 		</div>
 	{/if}

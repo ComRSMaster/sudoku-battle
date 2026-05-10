@@ -11,6 +11,7 @@ class UserSchema(BaseModel):
     name: str
     photo_url: Optional[str] = None
     solved_count: int = 0
+    achievements: dict = {}
 
     model_config = ConfigDict(from_attributes=True)
 

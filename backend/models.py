@@ -33,6 +33,7 @@ class UserORM(Base):
     photo_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     solved_count: Mapped[int] = mapped_column(default=0)
     fastest_solve_time: Mapped[Optional[int]] = mapped_column(nullable=True)
+    achievements: Mapped[dict] = mapped_column(JSONB, default=dict)
 
     games: Mapped[List[GameORM]] = relationship(
         secondary=game_users, back_populates="users"
