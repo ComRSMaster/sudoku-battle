@@ -8,6 +8,7 @@ class Settings(BaseSettings):
 
     bot_token: str
     web_app_url: str
+    database_url: str
 
     model_config = SettingsConfigDict(env_file=".env")
 

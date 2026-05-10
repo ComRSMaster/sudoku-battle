@@ -1,75 +1,42 @@
-"""API для управления лидербордом"""
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from pydantic import BaseModel
-from fastapi import APIRouter, Query
-
-
-class UserScoreSchema(BaseModel):
-    """Схема для пользователя в лидербoрдe"""
-
-    user_id: int
-    solved_count: int
-    rank: int
-
-
-class LeaderboardResponse(BaseModel):
-    """Схема ответа лидерборда"""
-
-    leaderboard: list[UserScoreSchema]
-
-
-# TODO: заменить на PostgreSQL
-_user_scores: dict[int, int] = {}
-
-
-def increment_user_score(user_id: int) -> int:
-    """Увеличить количество разгаданных судоку для пользователя"""
-    if user_id not in _user_scores:
-        _user_scores[user_id] = 0
-    _user_scores[user_id] += 1
-    return _user_scores[user_id]
-
-
-def get_user_score(user_id: int) -> int:
-    """Получить количество разгаданных судоку для пользователя"""
-    return _user_scores.get(user_id, 0)
-
-
-def get_leaderboard(limit: int = 100) -> list[UserScoreSchema]:
-    """Получить лидерборд с рейтингом пользователей"""
-    sorted_scores = sorted(
-        _user_scores.items(), key=lambda x: x[1], reverse=True
-    )
-
-    leaderboard = []
-    for rank, (user_id, solved_count) in enumerate(sorted_scores[:limit], 1):
-        leaderboard.append(
-            UserScoreSchema(user_id=user_id, solved_count=solved_count, rank=rank)
-        )
-
-    return leaderboard
-
+from backend.database import get_db
+from backend.models import UserORM
+from backend.schemas.leaderboards import LeaderboardResponse, UserScoreSchema
 
 router = APIRouter(prefix="/leaderboards", tags=["Leaderboards"])
 
 
 @router.get("/", response_model=LeaderboardResponse)
-async def get_leaderboards(limit: int = Query(default=100, ge=1, le=1000)) -> LeaderboardResponse:
+async def get_leaderboards(
+    limit: int = Query(default=100, ge=1, le=1000),
+    db: AsyncSession = Depends(get_db),
+) -> LeaderboardResponse:
     """Получить глобальный лидерборд"""
-    return LeaderboardResponse(leaderboard=get_leaderboard(limit))
 
-
-@router.get("/user/{user_id}")
-async def get_user_leaderboard_position(user_id: int) -> UserScoreSchema:
-    """Получить позицию пользователя в лидербorde"""
-    leaderboard = get_leaderboard(limit=10000)
-
-    for entry in leaderboard:
-        if entry.user_id == user_id:
-            return entry
-
-    return UserScoreSchema(
-        user_id=user_id,
-        solved_count=get_user_score(user_id),
-        rank=len(leaderboard) + 1 if leaderboard else 1
+    rank_stmt = (
+        select(
+            UserORM, func.rank().over(order_by=desc(UserORM.solved_count)).label("rank")
+        )
+        .order_by(desc(UserORM.solved_count))
+        .limit(limit)
     )
+
+    result = await db.execute(rank_stmt)
+    leaderboard = []
+
+    for user, rank in result.all():
+        leaderboard.append(
+            UserScoreSchema(
+                user_id=user.user_id,
+                username=user.username,
+                name=user.name,
+                photo_url=user.photo_url,
+                solved_count=user.solved_count,
+                rank=rank,
+            )
+        )
+
+    return LeaderboardResponse(leaderboard=leaderboard)
