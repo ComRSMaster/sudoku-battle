@@ -22,6 +22,7 @@ async def create_game(db: AsyncSession, user_id: int, holes_count: int) -> GameO
         n=sudoku.n,
         holes_count=sudoku.holes_count,
         table=sudoku.table,
+        holes_mask=sudoku.holes_mask,
     )
     if user:
         game.users.append(user)
@@ -43,7 +44,7 @@ async def get_game(db: AsyncSession, game_id: int) -> Optional[GameORM]:
 
 
 async def update_game_table(
-    db: AsyncSession, game_id: int, table: list, holes_count: int
+    db: AsyncSession, game_id: int, table: list, holes_count: int, holes_mask: list
 ) -> None:
     """Обновить состояние игрового поля"""
     game = await get_game(db, game_id)
@@ -51,8 +52,10 @@ async def update_game_table(
         return
 
     game.table = table
-    flag_modified(game, "table") 
+    flag_modified(game, "table")
     game.holes_count = holes_count
+    game.holes_mask = holes_mask
+    flag_modified(game, "holes_mask")
     await db.commit()
 
 

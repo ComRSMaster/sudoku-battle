@@ -32,8 +32,9 @@ class UserORM(Base):
     name: Mapped[str] = mapped_column(String(255))
     photo_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     solved_count: Mapped[int] = mapped_column(default=0)
+    fastest_solve_time: Mapped[Optional[int]] = mapped_column(nullable=True)
 
-    games: Mapped[List["GameORM"]] = relationship(
+    games: Mapped[List[GameORM]] = relationship(
         secondary=game_users, back_populates="users"
     )
 
@@ -47,10 +48,11 @@ class GameORM(Base):
     n: Mapped[int] = mapped_column(default=DEFAULT_REG_SIZE)
     holes_count: Mapped[int] = mapped_column(default=DEFAULT_HOLES_COUNT)
     table: Mapped[list] = mapped_column(JSONB)
-    last_move: Mapped[datetime] = mapped_column(
+    holes_mask: Mapped[list] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
 
-    users: Mapped[List["UserORM"]] = relationship(
+    users: Mapped[List[UserORM]] = relationship(
         secondary=game_users, back_populates="games"
     )

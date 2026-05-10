@@ -1,5 +1,4 @@
-from typing import Optional
-
+from aiogram.utils.web_app import WebAppUser
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,13 +6,13 @@ from backend.models import UserORM
 from core.exceptions import UserNotFoundError
 
 
-async def get_user(db: AsyncSession, user_id: int) -> Optional[UserORM]:
+async def get_user(db: AsyncSession, user_id: int) -> UserORM | None:
     """Получить пользователя по ID"""
     result = await db.execute(select(UserORM).where(UserORM.user_id == user_id))
     return result.scalars().first()
 
 
-async def get_user_by_username(db: AsyncSession, username: str) -> Optional[UserORM]:
+async def get_user_by_username(db: AsyncSession, username: str) -> UserORM | None:
     """Получить пользователя по username"""
     result = await db.execute(select(UserORM).where(UserORM.username == username))
     return result.scalars().first()
@@ -22,9 +21,9 @@ async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User
 async def create_user(
     db: AsyncSession,
     user_id: int,
-    username: Optional[str],
+    username: str | None,
     name: str,
-    photo_url: Optional[str] = None,
+    photo_url: str | None,
 ) -> UserORM:
     """Создать нового пользователя"""
     user = UserORM(
@@ -41,19 +40,22 @@ async def create_user(
 
 async def get_user_or_create(
     db: AsyncSession,
-    user_id: int,
-    username: Optional[str] = None,
-    name: str = "",
+    user_data: WebAppUser,
 ) -> UserORM:
     """Получить пользователя или создать с данными по умолчанию"""
-    user = await get_user(db, user_id)
+    user = await get_user(db, user_data.id)
     if user:
         return user
 
-    username = username or f"user_{user_id}"
-    name = name or f"User {user_id}"
+    full_name = (
+        f"{user_data.first_name} {user_data.last_name}"
+        if user_data.last_name
+        else user_data.first_name
+    )
 
-    return await create_user(db, user_id, username, name)
+    return await create_user(
+        db, user_data.id, user_data.username, full_name, user_data.photo_url
+    )
 
 
 async def increment_user_solved_count(db: AsyncSession, user_id: int) -> int:

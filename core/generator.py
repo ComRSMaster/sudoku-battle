@@ -27,6 +27,7 @@ class Sudoku:
         self,
         n: int = DEFAULT_REG_SIZE,
         table: list[list[int]] | None = None,
+        holes_mask: list[list[bool]] | None = None,
         holes_count: int = DEFAULT_HOLES_COUNT,
         shuffle_count: int = DEFAULT_SHUFFLE_COUNT,
     ) -> None:
@@ -35,15 +36,17 @@ class Sudoku:
         self.n: int = n
         self.holes_count: int = holes_count
 
-        if table is None:
+        if table is None or holes_mask is None:
             self.table: list[list[int]] = [
                 [((i * n + i // n + j) % (n * n) + 1) for j in range(n * n)]
                 for i in range(n * n)
             ]
+            self.holes_mask: list[list[bool]] = [[False] * (n * n) for _ in range(n * n)]
             self.shuffle(shuffle_count)
             self.create_holes(holes_count)
         else:
             self.table = table
+            self.holes_mask = holes_mask
 
     def __str__(self) -> str:
         """Вывод таблицы в виде строки"""
@@ -134,7 +137,10 @@ class Sudoku:
 
         cells = random.sample(range(self.n**4), count)
         for cell in cells:
-            self.table[cell // (self.n * self.n)][cell % (self.n * self.n)] = 0
+            i = cell // (self.n * self.n)
+            j = cell % (self.n * self.n)
+            self.table[i][j] = 0
+            self.holes_mask[i][j] = True
 
     def _validate_coordinates(self, row: int, col: int) -> None:
         """Проверить, что координаты ячейки находятся в пределах поля"""
@@ -169,7 +175,7 @@ class Sudoku:
         if not (1 <= value <= self.n * self.n):
             raise InvalidCellValueError(value=value, max_value=self.n * self.n)
 
-        if self.table[row][col] != 0:
+        if not self.holes_mask[row][col]:
             raise CellAlreadyFilledError(row=row, col=col)
 
         if value not in self.available_values(row, col):

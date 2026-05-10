@@ -1,18 +1,19 @@
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.auth import get_user_data_from_tma
 from backend.crud import games as crud_games
 from backend.crud import users as crud_users
-from backend.database import AsyncSessionLocal, get_db
+from backend.database import AsyncSessionLocal
 from backend.schemas.games import (
-    CreateGameRequest,
     GameStateResponse,
     SudokuSchema,
 )
 from backend.sockets.manager import manager
+from core.exceptions import SudokuRulesViolationError, UserNotFoundError
 from core.generator import Sudoku
 
-router = APIRouter(prefix="/games", tags=["Games"])
+router = APIRouter(prefix="/games", tags=["Websocket games"])
 
 
 async def _get_game_state(game_id: int, db: AsyncSession) -> GameStateResponse:
@@ -23,53 +24,83 @@ async def _get_game_state(game_id: int, db: AsyncSession) -> GameStateResponse:
 
     return GameStateResponse(
         game_id=game.id,
-        sudoku=SudokuSchema(n=game.n, holes_count=game.holes_count, table=game.table),
+        sudoku=SudokuSchema(
+            n=game.n,
+            holes_count=game.holes_count,
+            table=game.table,
+            holes_mask=game.holes_mask,
+        ),
         user_ids=[u.user_id for u in game.users],
     )
 
 
-@router.post("/", response_model=GameStateResponse)
-async def create_game(
-    payload: CreateGameRequest, db: AsyncSession = Depends(get_db)
-) -> GameStateResponse:
-    """Создать новую игру"""
-    await crud_users.get_user_or_create(db, payload.user_id)
-    game = await crud_games.create_game(db, payload.user_id, payload.holes_count)
-    return await _get_game_state(game.id, db)
-
-
-@router.websocket("/{game_id}/ws/{user_id}")
-async def game_websocket(game_id: int, user_id: int, websocket: WebSocket):
+@router.websocket("/play")
+async def game_websocket(
+    websocket: WebSocket,
+    game_id: int | None = Query(None),
+    tma: str | None = Query(None),
+) -> None:
     """WebSocket для real-time взаимодействия"""
-    await manager.connect(game_id, websocket)
+
+    user_data = get_user_data_from_tma(tma)
+    user_id = user_data.id
+
+    async with AsyncSessionLocal() as db:
+        user = await crud_users.get_user_or_create(db, user_data)
+
+        if game_id:
+            game = await crud_games.get_game(db, game_id)
+        else:
+            game = await crud_games.create_game(db, user_id, 5)
+            game_id = game.id
+
+        await manager.connect(game_id, websocket)
+
+        state = await _get_game_state(game_id, db)
+        await websocket.send_json(state.model_dump())
+
     try:
         while True:
             data = await websocket.receive_json()
-            # Expecting {"row": int, "col": int, "value": int}
 
             async with AsyncSessionLocal() as db:
                 game = await crud_games.get_game(db, game_id)
-                if not game or user_id not in [u.user_id for u in game.users]:
-                    await websocket.send_json(
-                        {"error": "Unauthorized or game not found"}
-                    )
+                if not game:
                     continue
 
-                sudoku = Sudoku(n=game.n, holes_count=game.holes_count)
-                sudoku.table = game.table
+                sudoku = Sudoku(
+                    n=game.n,
+                    holes_count=game.holes_count,
+                    table=game.table,
+                    holes_mask=game.holes_mask,
+                )
 
                 try:
                     sudoku.solve_hole(data["row"], data["col"], data["value"])
                     await crud_games.update_game_table(
-                        db, game_id, sudoku.table, sudoku.holes_count
+                        db, game_id, sudoku.table, sudoku.holes_count, sudoku.holes_mask
                     )
 
                     if sudoku.holes_count == 0:
+                        solved_time = data.get("time", 0)
+                        user = await crud_users.get_user_or_create(db, user_data)
+                        if user is None:
+                            raise UserNotFoundError(user_id)
+
                         await crud_users.increment_user_solved_count(db, user_id)
+
+                        if solved_time > 0 and (
+                            user.fastest_solve_time is None
+                            or solved_time < user.fastest_solve_time
+                        ):
+                            user.fastest_solve_time = solved_time
+                            await db.commit()
 
                     state = await _get_game_state(game_id, db)
                     await manager.broadcast(game_id, state.model_dump())
 
+                except SudokuRulesViolationError:
+                    await websocket.send_json({"error": "Invalid move", "penalty": 10})
                 except Exception as e:
                     await websocket.send_json({"error": str(e)})
 

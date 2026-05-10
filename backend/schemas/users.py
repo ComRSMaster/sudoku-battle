@@ -6,13 +6,13 @@ from pydantic import BaseModel, ConfigDict, Field
 class UserSchema(BaseModel):
     """Схема пользователя для API"""
 
-    model_config = ConfigDict(from_attributes=True)
-
     user_id: int
     username: Optional[str] = None
     name: str
     photo_url: Optional[str] = None
     solved_count: int = 0
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserCreateRequest(BaseModel):

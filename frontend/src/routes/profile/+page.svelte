@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { API_BASE } from '$lib/config';
+	import { getTmaInitData } from '$lib/tma';
 
 	interface UserInfo {
 		user_id: number;
@@ -11,12 +13,11 @@
 
 	let userInfo = $state<UserInfo | null>(null);
 	let loading = $state(true);
-	let userId = 1; // TODO
 
 	async function loadUserPosition() {
 		try {
 			loading = true;
-			const response = await fetch(`/api/users/${userId}`);
+			const response = await fetch(`${API_BASE}/api/users/?tma=${getTmaInitData()}`);
 			const data = await response.json();
 			userInfo = data;
 		} catch (error) {
