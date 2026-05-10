@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { API_BASE } from '$lib/config';
+	import { getTmaInitData } from '$lib/tma';
 
 	interface LeaderboardEntry {
 		rank: number;
@@ -14,7 +16,7 @@
 	async function loadLeaderboard() {
 		try {
 			loading = true;
-			const response = await fetch('/api/leaderboards/?limit=100');
+			const response = await fetch(`${API_BASE}/api/leaderboards/?limit=100&tma=${getTmaInitData()}`);
 			const data = await response.json();
 			leaderboard = data.leaderboard;
 			error = null;
@@ -35,7 +37,7 @@
 
 <div class="flex h-full flex-col p-5">
 	<div class="mb-5">
-		<p class="text-sm font-semibold uppercase tracking-[0.16em] opacity-60">Leaderboard</p>
+		<p class="text-sm font-semibold tracking-[0.16em] uppercase opacity-60">Leaderboard</p>
 	</div>
 
 	<div class="space-y-3">
@@ -58,9 +60,11 @@
 	{:else}
 		<div class="mt-6 space-y-3">
 			{#each leaderboard as player (player.user_id)}
-				<div class="card preset-outlined-surface-200-800 flex items-center justify-between p-4">
+				<div class="flex items-center justify-between card preset-outlined-surface-200-800 p-4">
 					<div class="flex items-center gap-4">
-						<div class="preset-filled-primary-500 flex h-10 w-10 items-center justify-center rounded-xl font-black">
+						<div
+							class="flex h-10 w-10 items-center justify-center rounded-xl preset-filled-primary-500 font-black"
+						>
 							{player.rank}
 						</div>
 						<div>
@@ -70,7 +74,7 @@
 					</div>
 					<div class="text-right">
 						<p class="text-lg font-black">{player.solved_count}</p>
-						<p class="text-xs uppercase tracking-[0.14em] opacity-50">Игр</p>
+						<p class="text-xs tracking-[0.14em] uppercase opacity-50">Игр</p>
 					</div>
 				</div>
 			{/each}

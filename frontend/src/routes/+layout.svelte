@@ -1,19 +1,19 @@
 <script lang="ts">
 	import './layout.css';
+	import { type Component } from 'svelte';
 	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/state';
-	import { TrophyIcon, BookIcon, HouseIcon, UserIcon } from '@lucide/svelte';
+	import { TrophyIcon, HouseIcon, UserIcon } from '@lucide/svelte';
 	import { Navigation } from '@skeletonlabs/skeleton-svelte';
 
 	interface NavLink {
 		label: string;
 		href: string;
-		icon: any;
+		icon: Component;
 	}
 
 	const links: NavLink[] = [
 		{ label: 'Главная', href: '/', icon: HouseIcon },
-		{ label: 'Sudoku', href: '/sudoku', icon: BookIcon },
 		{ label: 'Рейтинг', href: '/leaderboard', icon: TrophyIcon },
 		{ label: 'Профиль', href: '/profile', icon: UserIcon }
 	];
@@ -37,7 +37,7 @@
 	</div>
 
 	<Navigation layout="bar" class="border-t border-surface-200-800">
-		<Navigation.Menu class="grid grid-cols-4 gap-2 p-2">
+		<Navigation.Menu class="grid grid-cols-3 gap-2 p-2">
 			{#each links as link (link.label)}
 				{@const Icon = link.icon}
 				<a

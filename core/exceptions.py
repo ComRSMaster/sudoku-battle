@@ -13,6 +13,10 @@ class UserNotFoundError(SudokuBattleError):
         super().__init__(f"User {user_id} not found")
 
 
+class AuthTMAError(SudokuBattleError):
+    """Ошибка авторизации пользователя в Telegram Mini Apps"""
+
+
 class SudokuError(SudokuBattleError):
     """Базовое исключение для операций с игровым полем судоку"""
 

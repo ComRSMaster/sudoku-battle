@@ -6,9 +6,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import games, leaderboards, users
+from backend.api import games, history, leaderboards, users
 from backend.database import Base, engine
 from core.exceptions import (
+    AuthTMAError,
     GameAccessDeniedError,
     GameNotFoundError,
     SudokuError,
@@ -32,6 +33,16 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(AuthTMAError)
+async def auth_tma_handler(
+    request: Request,
+    error: AuthTMAError,
+) -> JSONResponse:
+    """Преобразовать ошибку авторизации в Telegram Mini Apps в HTTP-ответ"""
+
+    return JSONResponse(status_code=403, content={"detail": str(error)})
 
 
 @app.exception_handler(UserNotFoundError)
@@ -74,11 +85,12 @@ async def sudoku_error_handler(
     return JSONResponse(status_code=400, content={"detail": str(error)})
 
 
-app.include_router(games.router, prefix="/api")
+app.include_router(games.router, prefix="/ws")
+app.include_router(history.router, prefix="/api")
 app.include_router(leaderboards.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+# app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
 
 
 async def run_server() -> None:

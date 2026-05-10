@@ -9,6 +9,7 @@ class SudokuSchema(BaseModel):
     n: int
     holes_count: int
     table: list[list[int]]
+    holes_mask: list[list[bool]]
     model_config = ConfigDict(from_attributes=True)
 
 
