@@ -1,40 +1,59 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+
+	interface UserInfo {
+		user_id: number;
+		username: string | null;
+		name: string;
+		photo_url: string;
+		solved_count: number;
+	}
+
+	let userInfo = $state<UserInfo | null>(null);
+	let loading = $state(true);
+	let userId = 1; // TODO
+
+	async function loadUserPosition() {
+		try {
+			loading = true;
+			const response = await fetch(`/api/users/${userId}`);
+			const data = await response.json();
+			userInfo = data;
+		} catch (error) {
+			console.error('Failed to load user position:', error);
+		} finally {
+			loading = false;
+		}
+	}
+
+	onMount(() => {
+		loadUserPosition();
+	});
 </script>
 
 <div class="flex h-full flex-col p-5">
 	<div class="mb-5">
-		<p class="text-sm font-semibold uppercase tracking-[0.16em] opacity-60">Profile</p>
+		<p class="text-sm font-semibold tracking-[0.16em] uppercase opacity-60">Профиль</p>
 	</div>
 
-	<div class="card preset-filled-primary-500 p-5">
-		<p class="text-sm uppercase tracking-[0.16em] opacity-70">Player Card</p>
-		<h2 class="mt-2 text-3xl font-black">Vlad</h2>
-		<p class="mt-1 text-sm opacity-80">Ранг: Rapid Solver</p>
-	</div>
+	{#if loading}
+		<div class="flex items-center justify-center">
+			<p class="text-sm opacity-60">Загрузка профиля...</p>
+		</div>
+	{:else if userInfo}
+		<div class="card preset-filled-primary-500 p-5">
+			<p class="text-sm tracking-[0.16em] uppercase opacity-70">Ваш профиль</p>
+			<h2 class="mt-2 text-3xl font-black">{userInfo.name}</h2>
+			{#if userInfo.username}
+				<p class="mt-1 text-sm opacity-80">@{userInfo.username}</p>
+			{/if}
+		</div>
 
-	<div class="mt-5 grid grid-cols-2 gap-3">
-		<div class="card preset-outlined-surface-200-800 p-4">
-			<p class="text-xs uppercase tracking-[0.16em] opacity-50">Solved</p>
-			<p class="mt-2 text-3xl font-black">84</p>
+		<div class="mt-5 grid grid-cols-2 gap-3">
+			<div class="card preset-outlined-surface-200-800 p-4">
+				<p class="text-xs tracking-[0.16em] uppercase opacity-50">Разгадано</p>
+				<p class="mt-2 text-3xl font-black">{userInfo.solved_count}</p>
+			</div>
 		</div>
-		<div class="card preset-outlined-surface-200-800 p-4">
-			<p class="text-xs uppercase tracking-[0.16em] opacity-50">Best Time</p>
-			<p class="mt-2 text-3xl font-black">04:12</p>
-		</div>
-		<div class="card preset-outlined-surface-200-800 p-4">
-			<p class="text-xs uppercase tracking-[0.16em] opacity-50">Win Rate</p>
-			<p class="mt-2 text-3xl font-black">73%</p>
-		</div>
-		<div class="card preset-outlined-surface-200-800 p-4">
-			<p class="text-xs uppercase tracking-[0.16em] opacity-50">Streak</p>
-			<p class="mt-2 text-3xl font-black">6</p>
-		</div>
-	</div>
-
-	<div class="card preset-filled mt-5 p-4">
-		<p class="font-semibold">Следующая цель</p>
-		<p class="mt-1 text-sm opacity-65">
-			Выиграть ещё 2 партии, чтобы попасть в топ-3 дневного лидерборда.
-		</p>
-	</div>
+	{/if}
 </div>

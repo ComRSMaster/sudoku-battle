@@ -26,19 +26,24 @@ class Sudoku:
     def __init__(
         self,
         n: int = DEFAULT_REG_SIZE,
-        shuffle_count: int = DEFAULT_SHUFFLE_COUNT,
+        table: list[list[int]] | None = None,
         holes_count: int = DEFAULT_HOLES_COUNT,
+        shuffle_count: int = DEFAULT_SHUFFLE_COUNT,
     ) -> None:
         """Создание таблицы судоку"""
 
         self.n: int = n
         self.holes_count: int = holes_count
-        self.table: list[list[int]] = [
-            [((i * n + i // n + j) % (n * n) + 1) for j in range(n * n)]
-            for i in range(n * n)
-        ]
-        self.shuffle(shuffle_count)
-        self.create_holes(holes_count)
+
+        if table is None:
+            self.table: list[list[int]] = [
+                [((i * n + i // n + j) % (n * n) + 1) for j in range(n * n)]
+                for i in range(n * n)
+            ]
+            self.shuffle(shuffle_count)
+            self.create_holes(holes_count)
+        else:
+            self.table = table
 
     def __str__(self) -> str:
         """Вывод таблицы в виде строки"""
@@ -74,7 +79,10 @@ class Sudoku:
             if l1 != l2:
                 break
 
-        self.table[row * self.n + l1], self.table[row * self.n + l2] = self.table[row * self.n + l2], self.table[row * self.n + l1]
+        self.table[row * self.n + l1], self.table[row * self.n + l2] = (
+            self.table[row * self.n + l2],
+            self.table[row * self.n + l1],
+        )
 
     def swap_columns_single(self) -> None:
         """Обмен двух столбцов"""
