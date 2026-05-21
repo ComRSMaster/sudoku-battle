@@ -10,9 +10,9 @@ from core.exceptions import UserNotFoundError
 from core.generator import Sudoku
 
 
-async def create_game(db: AsyncSession, user_id: int, holes_count: int) -> GameORM:
+async def create_game(db: AsyncSession, user_id: int, holes_count: int, random_seed: int | None = None) -> GameORM:
     """Создать новую игру и привязать к пользователю"""
-    sudoku = Sudoku(holes_count=holes_count)
+    sudoku = Sudoku(holes_count=holes_count, random_seed=random_seed)
 
     user = await db.get(UserORM, user_id)
     if not user:
@@ -32,6 +32,27 @@ async def create_game(db: AsyncSession, user_id: int, holes_count: int) -> GameO
     await db.refresh(game)
     return game
 
+async def create_game_from(db: AsyncSession, user_id: int, table: list[list[int]], holes_mask: list[list[bool]]) -> GameORM:
+    """Создать новую игру и привязать к пользователю"""
+    sudoku = Sudoku(table=table, holes_mask=holes_mask)
+
+    user = await db.get(UserORM, user_id)
+    if not user:
+        raise UserNotFoundError(user_id)
+
+    game = GameORM(
+        n=sudoku.n,
+        holes_count=sudoku.holes_count,
+        table=sudoku.table,
+        holes_mask=sudoku.holes_mask,
+    )
+    if user:
+        game.users.append(user)
+
+    db.add(game)
+    await db.commit()
+    await db.refresh(game)
+    return game
 
 async def get_game(db: AsyncSession, game_id: int) -> Optional[GameORM]:
     """Получить игру по ID с загрузкой пользователей"""

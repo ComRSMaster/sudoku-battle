@@ -30,6 +30,7 @@ class Sudoku:
         holes_mask: list[list[bool]] | None = None,
         holes_count: int = DEFAULT_HOLES_COUNT,
         shuffle_count: int = DEFAULT_SHUFFLE_COUNT,
+        random_seed: int | None = None,
     ) -> None:
         """Создание таблицы судоку"""
 
@@ -44,6 +45,7 @@ class Sudoku:
             self.holes_mask: list[list[bool]] = [
                 [False] * (n * n) for _ in range(n * n)
             ]
+            self.rng = random.Random(random_seed)
             self.shuffle(shuffle_count)
             self.create_holes(holes_count)
         else:
@@ -77,10 +79,10 @@ class Sudoku:
     def swap_rows_single(self) -> None:
         """Обмен двух строк"""
 
-        row = random.randint(0, self.n - 1)
-        l1 = random.randint(0, self.n - 1)
+        row = self.rng.randint(0, self.n - 1)
+        l1 = self.rng.randint(0, self.n - 1)
         while True:
-            l2 = random.randint(0, self.n - 1)
+            l2 = self.rng.randint(0, self.n - 1)
             if l1 != l2:
                 break
 
@@ -99,9 +101,9 @@ class Sudoku:
     def swap_rows_area(self) -> None:
         """Обмен двух районов по горизонтали"""
 
-        area1 = random.randint(0, self.n - 1)
+        area1 = self.rng.randint(0, self.n - 1)
         while True:
-            area2 = random.randint(0, self.n - 1)
+            area2 = self.rng.randint(0, self.n - 1)
             if area1 != area2:
                 break
 
@@ -128,16 +130,18 @@ class Sudoku:
             self.swap_columns_area,
         ]
         for _ in range(0, count):
-            random.choice(shuffle_func)()
+            self.rng.choice(shuffle_func)()
 
-    def create_holes(self, count: int = DEFAULT_HOLES_COUNT) -> None:
+    def create_holes(
+        self, count: int = DEFAULT_HOLES_COUNT
+    ) -> None:
         """Вычеркивание `count` случайных ячеек"""
 
         max_holes_count = self.n**4 - 1
         if not 1 <= count <= max_holes_count:
             raise InvalidHolesCountError(count=count, max_count=max_holes_count)
 
-        cells = random.sample(range(self.n**4), count)
+        cells = self.rng.sample(range(self.n**4), count)
         for cell in cells:
             i = cell // (self.n * self.n)
             j = cell % (self.n * self.n)
