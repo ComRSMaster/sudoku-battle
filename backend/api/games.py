@@ -13,7 +13,11 @@ from backend.sockets.manager import manager
 from core.exceptions import SudokuRulesViolationError, UserNotFoundError
 from core.generator import Sudoku
 
+from datetime import datetime, timezone
+
 router = APIRouter(prefix="/games", tags=["Websocket games"])
+
+start_date = datetime.fromtimestamp(0, tz=timezone.utc).date()
 
 
 async def _get_game_state(game_id: int, db: AsyncSession) -> GameStateResponse:
@@ -38,6 +42,8 @@ async def _get_game_state(game_id: int, db: AsyncSession) -> GameStateResponse:
 async def game_websocket(
     websocket: WebSocket,
     game_id: int | None = Query(None),
+    from_game_id: int | None = Query(None),
+    is_daily: bool | None = Query(None),
     tma: str | None = Query(None),
 ) -> None:
     """WebSocket для real-time взаимодействия"""
@@ -51,7 +57,22 @@ async def game_websocket(
         if game_id:
             game = await crud_games.get_game(db, game_id)
         else:
-            game = await crud_games.create_game(db, user_id, 5)
+            random_seed = None
+            if is_daily:
+                today_utc = datetime.now(timezone.utc).date()
+                random_seed = (today_utc - start_date).days
+
+            game = None
+            if from_game_id:
+                from_game = await crud_games.get_game(db, from_game_id)
+                if from_game:
+                    for i in range(from_game.n * from_game.n):
+                        for j in range(from_game.n * from_game.n):
+                            if from_game.holes_mask[i][j]:
+                                from_game.table[i][j] = 0
+                    game = await crud_games.create_game_from(db, user_id, from_game.table, from_game.holes_mask)
+            if game is None:
+                game = await crud_games.create_game(db, user_id, 5, random_seed)
             game_id = game.id
 
         await manager.connect(game_id, websocket)

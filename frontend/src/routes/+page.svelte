@@ -31,6 +31,16 @@
 			</div>
 		</a>
 
+		<a
+			href="/sudoku?is_daily=true"
+			class="block w-full card preset-filled-secondary-500 p-5 no-underline transition-transform hover:scale-105"
+		>
+			<div class="flex items-center justify-between">
+				<p class="text-2xl font-black">Судоку дня</p>
+				<PlayIcon />
+			</div>
+		</a>
+
 		<div class="space-y-3">
 			<h2 class="text-xl font-bold">История игр</h2>
 			<div class="space-y-2">

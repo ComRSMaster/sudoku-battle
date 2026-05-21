@@ -21,9 +21,11 @@
 		const params = new URLSearchParams(window.location.search);
 		const id = params.get('game_id');
 		if (id) gameId = parseInt(id);
+		const is_daily = params.get('is_daily');
 
 		let url = `${WS_BASE}/ws/games/play?tma=${getTmaInitData()}`;
 		if (gameId) url += `&game_id=${gameId}`;
+		if (is_daily) url += `&is_daily=${is_daily}`;
 
 		console.log('Connecting to:', url);
 		socket = new WebSocket(url);
@@ -43,13 +45,16 @@
 							message: 'Вы успешно решили судоку! Начать новую игру?',
 							buttons: [
 								{ id: 'restart', type: 'default', text: 'Да, начать' },
+								{ id: 'battle', type: 'default', text: 'Бросить вызов' },
 								{ id: 'cancel', type: 'destructive', text: 'Выйти в главное меню' }
 							]
 						},
 						(buttonId) => {
 							if (buttonId === 'restart') {
 								goto('/sudoku');
-							} else {
+							} else if (buttonId === 'battle') {
+								goto(`/sudoku?from_game_id=${gameId}`);
+							} {
 								goto('/');
 							}
 						}
