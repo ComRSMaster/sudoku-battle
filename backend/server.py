@@ -1,9 +1,10 @@
 """Настройка и запуск HTTP-сервера FastAPI"""
 
 from contextlib import asynccontextmanager
+import os
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.api import games, history, leaderboards, users
@@ -90,8 +91,21 @@ app.include_router(history.router, prefix="/api")
 app.include_router(leaderboards.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 
-# app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+BUILD_DIR = os.path.join(os.path.dirname(__file__), "../frontend/build")
 
+if os.path.exists(BUILD_DIR):
+    app.mount(
+        "/_app", StaticFiles(directory=os.path.join(BUILD_DIR, "_app")), name="assets"
+    )
+
+    @app.get("/{catchall:path}")
+    async def serve_index(catchall: str):
+        if catchall in ["docs", "redoc", "openapi.json"]:
+            raise HTTPException(status_code=404)
+
+        return FileResponse(os.path.join(BUILD_DIR, "index.html"))
+else:
+    raise FileNotFoundError(BUILD_DIR)
 
 async def run_server() -> None:
     """Запустить сервер игры FastAPI"""
