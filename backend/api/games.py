@@ -112,7 +112,10 @@ async def game_websocket(
 
                         battle_won = False
                         if solved_time > 0:
-                            if game.fastest_solve != -1 and game.fastest_solve > solved_time:
+                            if (
+                                game.fastest_solve != -1
+                                and game.fastest_solve > solved_time
+                            ):
                                 battle_won = True
                             await crud_games.update_game_solved_time(
                                 db,
@@ -120,7 +123,10 @@ async def game_websocket(
                                 solved_time,
                             )
 
-                            if user.fastest_solve_time is None or solved_time < user.fastest_solve_time:
+                            if (
+                                user.fastest_solve_time is None
+                                or solved_time < user.fastest_solve_time
+                            ):
                                 user.fastest_solve_time = solved_time
                                 await db.commit()
 
