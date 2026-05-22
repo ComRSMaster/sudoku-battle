@@ -132,9 +132,7 @@ class Sudoku:
         for _ in range(0, count):
             self.rng.choice(shuffle_func)()
 
-    def create_holes(
-        self, count: int = DEFAULT_HOLES_COUNT
-    ) -> None:
+    def create_holes(self, count: int = DEFAULT_HOLES_COUNT) -> None:
         """Вычеркивание `count` случайных ячеек"""
 
         max_holes_count = self.n**4 - 1

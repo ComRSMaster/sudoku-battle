@@ -70,6 +70,18 @@ async def increment_user_solved_count(db: AsyncSession, user_id: int) -> int:
     return user.solved_count
 
 
+async def increment_user_battles_won(db: AsyncSession, user_id: int) -> int:
+    """Увеличить количество выигранных баттлов"""
+    user = await get_user(db, user_id)
+    if not user:
+        raise UserNotFoundError(user_id)
+
+    user.battles_won += 1
+    await db.commit()
+    await db.refresh(user)
+    return user.solved_count
+
+
 async def update_user_achievements(
     db: AsyncSession, user_id: int, solved_time: int
 ) -> dict:
@@ -84,9 +96,13 @@ async def update_user_achievements(
     if solved_time < 120:
         achievements["sprinter"] = True
 
-    # Продвинутый игрок: >= 50 игр
+    # Продвинутый игрок: 50 игр
     if user.solved_count >= 50:
         achievements["advanced_player"] = True
+
+    # Мастер: Выиграть 100 дуэлей
+    if user.battles_won >= 100:
+        achievements["master"] = True
 
     user.achievements = achievements
     await db.commit()

@@ -32,6 +32,7 @@ class UserORM(Base):
     name: Mapped[str] = mapped_column(String(255))
     photo_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     solved_count: Mapped[int] = mapped_column(default=0)
+    battles_won: Mapped[int] = mapped_column(default=0)
     fastest_solve_time: Mapped[Optional[int]] = mapped_column(nullable=True)
     achievements: Mapped[dict] = mapped_column(JSONB, default=dict)
 
@@ -49,6 +50,7 @@ class GameORM(Base):
     n: Mapped[int] = mapped_column(default=DEFAULT_REG_SIZE)
     holes_count: Mapped[int] = mapped_column(default=DEFAULT_HOLES_COUNT)
     table: Mapped[list] = mapped_column(JSONB)
+    fastest_solve: Mapped[int] = mapped_column(default=-1)
     holes_mask: Mapped[list] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

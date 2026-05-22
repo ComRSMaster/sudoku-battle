@@ -70,7 +70,9 @@ async def game_websocket(
                         for j in range(from_game.n * from_game.n):
                             if from_game.holes_mask[i][j]:
                                 from_game.table[i][j] = 0
-                    game = await crud_games.create_game_from(db, user_id, from_game.table, from_game.holes_mask)
+                    game = await crud_games.create_game_from(
+                        db, user_id, from_game.table, from_game.holes_mask
+                    )
             if game is None:
                 game = await crud_games.create_game(db, user_id, 5, random_seed)
             game_id = game.id
@@ -108,14 +110,31 @@ async def game_websocket(
                         if user is None:
                             raise UserNotFoundError(user_id)
 
-                        await crud_users.increment_user_solved_count(db, user_id)
+                        battle_won = False
+                        if solved_time > 0:
+                            if (
+                                game.fastest_solve != -1
+                                and game.fastest_solve > solved_time
+                            ):
+                                battle_won = True
+                            await crud_games.update_game_solved_time(
+                                db,
+                                game_id,
+                                solved_time,
+                            )
 
-                        if solved_time > 0 and (
-                            user.fastest_solve_time is None
-                            or solved_time < user.fastest_solve_time
-                        ):
-                            user.fastest_solve_time = solved_time
-                            await db.commit()
+                            if (
+                                user.fastest_solve_time is None
+                                or solved_time < user.fastest_solve_time
+                            ):
+                                user.fastest_solve_time = solved_time
+                                await db.commit()
+
+                        await crud_users.increment_user_solved_count(db, user_id)
+                        await crud_users.increment_user_battles_won(db, user_id)
+                        await crud_users.update_user_achievements(
+                            db, user_id, solved_time
+                        )
 
                     state = await _get_game_state(game_id, db)
                     await manager.broadcast(game_id, state.model_dump())
