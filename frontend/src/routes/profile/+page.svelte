@@ -12,6 +12,7 @@
 		achievements: {
 			sprinter: boolean;
 			advanced_player: boolean;
+			master: boolean;
 		};
 	}
 
@@ -72,6 +73,12 @@
 							.advanced_player
 							? 'bg-green-500/20 text-green-400'
 							: 'bg-surface-700 opacity-50'}">Продвинутый игрок</span
+					>
+					<span
+						class="rounded px-2 py-1 text-xs font-bold uppercase {userInfo.achievements
+							.master
+							? 'bg-green-500/20 text-green-400'
+							: 'bg-surface-700 opacity-50'}">Мастер</span
 					>
 				</div>
 			</div>

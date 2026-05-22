@@ -79,6 +79,19 @@ async def update_game_table(
     flag_modified(game, "holes_mask")
     await db.commit()
 
+async def update_game_solved_time(
+    db: AsyncSession, game_id: int, fastest_solve: int
+) -> None:
+    """Обновить время разгаданного игрового поля"""
+    game = await get_game(db, game_id)
+    if not game:
+        return
+
+    if game.fastest_solve == -1 or fastest_solve < game.fastest_solve:
+        game.fastest_solve = fastest_solve
+    flag_modified(game, "fastest_solve")
+    await db.commit()
+
 
 async def delete_game(db: AsyncSession, game_id: int) -> bool:
     """Удалить игру"""
