@@ -1,0 +1,13 @@
+[project]
+name = "sudoku-battle"
+version = "0.1.0"
+description = "Sudoku Battle - это соревновательная игра в Telegram на базе Mini Apps"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "aiogram==3.27.0",
+    "fastapi==0.136.1",
+    "gunicorn==25.3.0",
+    "pydantic-settings==2.14.0",
+    "uvicorn==0.46.0",
+]
