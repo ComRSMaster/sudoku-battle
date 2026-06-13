@@ -3,11 +3,22 @@ name = "sudoku-battle"
 version = "0.1.0"
 description = "Sudoku Battle - это соревновательная игра в Telegram на базе Mini Apps"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = "==3.14.4"
 dependencies = [
     "aiogram==3.27.0",
+    "alembic==1.18.4",
+    "asyncpg==0.31.0",
     "fastapi==0.136.1",
     "gunicorn==25.3.0",
+    "psycopg[binary]==3.3.4",
     "pydantic-settings==2.14.0",
+    "sqlalchemy==2.0.49",
     "uvicorn==0.46.0",
+    "websockets==16.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.0.3",
+    "pytest-cov==7.1.0",
 ]

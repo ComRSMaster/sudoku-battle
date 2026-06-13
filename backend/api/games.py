@@ -1,136 +1,148 @@
-"""API для создания и изменения игровых партий судоку"""
+from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from dataclasses import dataclass
-
-from fastapi import APIRouter
-from pydantic import BaseModel, ConfigDict, Field
-
-from core.constants import DEFAULT_BOARD_SIZE, DEFAULT_HOLES_COUNT
-from core.exceptions import GameAccessDeniedError, GameNotFoundError
+from backend.auth import get_user_data_from_tma
+from backend.crud import games as crud_games
+from backend.crud import users as crud_users
+from backend.database import AsyncSessionLocal
+from backend.schemas.games import (
+    GameStateResponse,
+    SudokuSchema,
+)
+from backend.sockets.manager import manager
+from core.exceptions import SudokuRulesViolationError, UserNotFoundError
 from core.generator import Sudoku
 
+from datetime import datetime, timezone
 
-class MoveRequest(BaseModel):
-    """Тело запроса для хода в судоку"""
+router = APIRouter(prefix="/games", tags=["Websocket games"])
 
-    user_id: int = Field(ge=0)
-    row: int = Field(ge=0, le=DEFAULT_BOARD_SIZE * DEFAULT_BOARD_SIZE - 1)
-    col: int = Field(ge=0, le=DEFAULT_BOARD_SIZE * DEFAULT_BOARD_SIZE - 1)
-    value: int = Field(ge=1, le=DEFAULT_BOARD_SIZE * DEFAULT_BOARD_SIZE)
+start_date = datetime.fromtimestamp(0, tz=timezone.utc).date()
 
 
-# TODO: заменить user_id на аутентификацию через Telegram Mini Apps
-# TODO: пользователь может ввести неправильные клетки так, чтобы судоку было невозможно разгадать, надо разрешить пользователю отменять свои ходы
+async def _get_game_state(game_id: int, db: AsyncSession) -> GameStateResponse:
+    """Вспомогательная функция для формирования состояния игры"""
+    game = await crud_games.get_game(db, game_id)
+    if not game:
+        raise ValueError(f"Game {game_id} not found")
 
-
-class CreateGameRequest(BaseModel):
-    """Тело запроса для создания новой игры"""
-
-    holes_count: int = Field(
-        default=DEFAULT_HOLES_COUNT,
-        ge=1,
-        le=DEFAULT_BOARD_SIZE**4 - 1,
-    )
-    user_id: int = Field(ge=0)
-
-
-class SudokuSchema(BaseModel):
-    """Схема судоку, отдаваемая через API"""
-
-    n: int
-    holes_count: int
-    table: list[list[int]]
-    model_config = ConfigDict(from_attributes=True)
-
-
-class GameStateResponse(BaseModel):
-    """Схема ответа с состоянием игры"""
-
-    sudoku: SudokuSchema
-    user_ids: list[int]
-    model_config = ConfigDict(from_attributes=True)
-
-
-class CreateGameResponse(GameStateResponse):
-    """Схема ответа при создании игры"""
-
-    game_id: int
-
-
-@dataclass
-class GameState:
-    """Внутреннее состояние одной игры"""
-
-    sudoku: Sudoku
-    user_ids: list[int]
-
-
-# TODO: заменить на Redis
-_games: dict[int, GameState] = {}
-_free_game_id: int = 0
-
-
-def _get_game(game_id: int, user_id: int) -> GameState:
-    """Получить игру из хранилища и проверить доступ пользователя"""
-    game = _games.get(game_id)
-
-    if game is None:
-        raise GameNotFoundError(game_id)
-
-    if user_id not in game.user_ids:
-        raise GameAccessDeniedError(game_id=game_id, user_id=user_id)
-
-    return game
-
-
-router = APIRouter(prefix="/games", tags=["Games"])
-
-
-@router.post("/", response_model=CreateGameResponse)
-async def create_game(payload: CreateGameRequest) -> CreateGameResponse:
-    """Создать новую игру и вернуть её идентификатор `game_id`"""
-
-    game = GameState(
-        sudoku=Sudoku(holes_count=payload.holes_count),
-        user_ids=[payload.user_id],
-    )
-
-    global _free_game_id
-    game_id = _free_game_id
-    _games[game_id] = game
-    _free_game_id += 1
-
-    return CreateGameResponse(
-        sudoku=SudokuSchema.model_validate(game.sudoku),
-        user_ids=game.user_ids,
-        game_id=game_id,
-    )
-
-
-@router.get("/{game_id}", response_model=GameStateResponse)
-async def get_game(game_id: int, user_id: int) -> GameStateResponse:
-    """Получить текущее состояние игры по её идентификатору `game_id`"""
-
-    game = _get_game(game_id, user_id)
     return GameStateResponse(
-        sudoku=SudokuSchema.model_validate(game.sudoku), user_ids=game.user_ids
+        game_id=game.id,
+        sudoku=SudokuSchema(
+            n=game.n,
+            holes_count=game.holes_count,
+            table=game.table,
+            holes_mask=game.holes_mask,
+        ),
+        user_ids=[u.user_id for u in game.users],
     )
 
 
-@router.post("/{game_id}/move", response_model=GameStateResponse)
-async def apply_move(game_id: int, move: MoveRequest) -> GameStateResponse:
-    """Применить ход игрока к игре по её идентификатору `game_id`"""
+@router.websocket("/play")
+async def game_websocket(
+    websocket: WebSocket,
+    game_id: int | None = Query(None),
+    from_game_id: int | None = Query(None),
+    is_daily: bool | None = Query(None),
+    tma: str | None = Query(None),
+) -> None:
+    """WebSocket для real-time взаимодействия"""
 
-    game = _get_game(game_id, move.user_id)
-    game.sudoku.solve_hole(move.row, move.col, move.value)
-    return GameStateResponse(
-        sudoku=SudokuSchema.model_validate(game.sudoku), user_ids=game.user_ids
-    )
+    user_data = get_user_data_from_tma(tma)
+    user_id = user_data.id
 
+    async with AsyncSessionLocal() as db:
+        user = await crud_users.get_user_or_create(db, user_data)
 
-@router.delete("/{game_id}", status_code=204)
-async def delete_game(game_id: int, user_id: int) -> None:
-    """Удалить игру по её идентификатору `game_id`"""
+        if game_id:
+            game = await crud_games.get_game(db, game_id)
+        else:
+            random_seed = None
+            if is_daily:
+                today_utc = datetime.now(timezone.utc).date()
+                random_seed = (today_utc - start_date).days
 
-    _get_game(game_id, user_id)
-    _games.pop(game_id)
+            game = None
+            if from_game_id:
+                from_game = await crud_games.get_game(db, from_game_id)
+                if from_game:
+                    for i in range(from_game.n * from_game.n):
+                        for j in range(from_game.n * from_game.n):
+                            if from_game.holes_mask[i][j]:
+                                from_game.table[i][j] = 0
+                    game = await crud_games.create_game_from(
+                        db, user_id, from_game.table, from_game.holes_mask
+                    )
+            if game is None:
+                game = await crud_games.create_game(db, user_id, 5, random_seed)
+            game_id = game.id
+
+        await manager.connect(game_id, websocket)
+
+        state = await _get_game_state(game_id, db)
+        await websocket.send_json(state.model_dump())
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+
+            async with AsyncSessionLocal() as db:
+                game = await crud_games.get_game(db, game_id)
+                if not game:
+                    continue
+
+                sudoku = Sudoku(
+                    n=game.n,
+                    holes_count=game.holes_count,
+                    table=game.table,
+                    holes_mask=game.holes_mask,
+                )
+
+                try:
+                    sudoku.solve_hole(data["row"], data["col"], data["value"])
+                    await crud_games.update_game_table(
+                        db, game_id, sudoku.table, sudoku.holes_count, sudoku.holes_mask
+                    )
+
+                    if sudoku.holes_count == 0:
+                        solved_time = data.get("time", 0)
+                        user = await crud_users.get_user_or_create(db, user_data)
+                        if user is None:
+                            raise UserNotFoundError(user_id)
+
+                        battle_won = False
+                        if solved_time > 0:
+                            if (
+                                game.fastest_solve != -1
+                                and game.fastest_solve > solved_time
+                            ):
+                                battle_won = True
+                            await crud_games.update_game_solved_time(
+                                db,
+                                game_id,
+                                solved_time,
+                            )
+
+                            if (
+                                user.fastest_solve_time is None
+                                or solved_time < user.fastest_solve_time
+                            ):
+                                user.fastest_solve_time = solved_time
+                                await db.commit()
+
+                        await crud_users.increment_user_solved_count(db, user_id)
+                        await crud_users.increment_user_battles_won(db, user_id)
+                        await crud_users.update_user_achievements(
+                            db, user_id, solved_time
+                        )
+
+                    state = await _get_game_state(game_id, db)
+                    await manager.broadcast(game_id, state.model_dump())
+
+                except SudokuRulesViolationError:
+                    await websocket.send_json({"error": "Invalid move", "penalty": 10})
+                except Exception as e:
+                    await websocket.send_json({"error": str(e)})
+
+    except WebSocketDisconnect:
+        manager.disconnect(game_id, websocket)

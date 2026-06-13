@@ -5,6 +5,18 @@ class SudokuBattleError(Exception):
     """Базовое исключение приложения игры"""
 
 
+class UserNotFoundError(SudokuBattleError):
+    """Пользователь не найден"""
+
+    def __init__(self, user_id: int) -> None:
+        self.user_id = user_id
+        super().__init__(f"User {user_id} not found")
+
+
+class AuthTMAError(SudokuBattleError):
+    """Ошибка авторизации пользователя в Telegram Mini Apps"""
+
+
 class SudokuError(SudokuBattleError):
     """Базовое исключение для операций с игровым полем судоку"""
 

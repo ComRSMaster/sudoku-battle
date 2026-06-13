@@ -4,8 +4,8 @@ import random
 from typing import Generator
 
 from core.constants import (
-    DEFAULT_BOARD_SIZE,
     DEFAULT_HOLES_COUNT,
+    DEFAULT_REG_SIZE,
     DEFAULT_SHUFFLE_COUNT,
 )
 from core.exceptions import (
@@ -25,20 +25,32 @@ class Sudoku:
 
     def __init__(
         self,
-        n: int = DEFAULT_BOARD_SIZE,
-        shuffle_count: int = DEFAULT_SHUFFLE_COUNT,
+        n: int = DEFAULT_REG_SIZE,
+        table: list[list[int]] | None = None,
+        holes_mask: list[list[bool]] | None = None,
         holes_count: int = DEFAULT_HOLES_COUNT,
+        shuffle_count: int = DEFAULT_SHUFFLE_COUNT,
+        random_seed: int | None = None,
     ) -> None:
         """Создание таблицы судоку"""
 
         self.n: int = n
         self.holes_count: int = holes_count
-        self.table: list[list[int]] = [
-            [((i * n + i // n + j) % (n * n) + 1) for j in range(n * n)]
-            for i in range(n * n)
-        ]
-        self.shuffle(shuffle_count)
-        self.create_holes(holes_count)
+
+        if table is None or holes_mask is None:
+            self.table: list[list[int]] = [
+                [((i * n + i // n + j) % (n * n) + 1) for j in range(n * n)]
+                for i in range(n * n)
+            ]
+            self.holes_mask: list[list[bool]] = [
+                [False] * (n * n) for _ in range(n * n)
+            ]
+            self.rng = random.Random(random_seed)
+            self.shuffle(shuffle_count)
+            self.create_holes(holes_count)
+        else:
+            self.table = table
+            self.holes_mask = holes_mask
 
     def __str__(self) -> str:
         """Вывод таблицы в виде строки"""
@@ -67,13 +79,17 @@ class Sudoku:
     def swap_rows_single(self) -> None:
         """Обмен двух строк"""
 
-        l1 = random.randint(0, self.n * self.n - 1)
+        row = self.rng.randint(0, self.n - 1)
+        l1 = self.rng.randint(0, self.n - 1)
         while True:
-            l2 = random.randint(0, self.n * self.n - 1)
+            l2 = self.rng.randint(0, self.n - 1)
             if l1 != l2:
                 break
 
-        self.table[l1], self.table[l2] = self.table[l2], self.table[l1]
+        self.table[row * self.n + l1], self.table[row * self.n + l2] = (
+            self.table[row * self.n + l2],
+            self.table[row * self.n + l1],
+        )
 
     def swap_columns_single(self) -> None:
         """Обмен двух столбцов"""
@@ -85,9 +101,9 @@ class Sudoku:
     def swap_rows_area(self) -> None:
         """Обмен двух районов по горизонтали"""
 
-        area1 = random.randint(0, self.n - 1)
+        area1 = self.rng.randint(0, self.n - 1)
         while True:
-            area2 = random.randint(0, self.n - 1)
+            area2 = self.rng.randint(0, self.n - 1)
             if area1 != area2:
                 break
 
@@ -114,7 +130,7 @@ class Sudoku:
             self.swap_columns_area,
         ]
         for _ in range(0, count):
-            random.choice(shuffle_func)()
+            self.rng.choice(shuffle_func)()
 
     def create_holes(self, count: int = DEFAULT_HOLES_COUNT) -> None:
         """Вычеркивание `count` случайных ячеек"""
@@ -123,9 +139,12 @@ class Sudoku:
         if not 1 <= count <= max_holes_count:
             raise InvalidHolesCountError(count=count, max_count=max_holes_count)
 
-        cells = random.sample(range(self.n**4), count)
+        cells = self.rng.sample(range(self.n**4), count)
         for cell in cells:
-            self.table[cell // (self.n * self.n)][cell % (self.n * self.n)] = 0
+            i = cell // (self.n * self.n)
+            j = cell % (self.n * self.n)
+            self.table[i][j] = 0
+            self.holes_mask[i][j] = True
 
     def _validate_coordinates(self, row: int, col: int) -> None:
         """Проверить, что координаты ячейки находятся в пределах поля"""
@@ -160,7 +179,7 @@ class Sudoku:
         if not (1 <= value <= self.n * self.n):
             raise InvalidCellValueError(value=value, max_value=self.n * self.n)
 
-        if self.table[row][col] != 0:
+        if not self.holes_mask[row][col]:
             raise CellAlreadyFilledError(row=row, col=col)
 
         if value not in self.available_values(row, col):
